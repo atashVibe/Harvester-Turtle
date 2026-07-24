@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Stock Profit Harvester</title>
+<title>Harvester Turtle</title>
 <style>
 :root{--bg:#f5f7fb;--card:#fff;--ink:#172033;--muted:#667085;--line:#dfe4ec;--accent:#1769e0;--good:#117a45;--warn:#9a6700;--bad:#b42318}
 *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--ink);font-family:Arial,Helvetica,sans-serif}
@@ -18,13 +18,13 @@ button.primary{background:var(--accent);color:#fff;border-color:var(--accent)}in
 </style>
 </head>
 <body><main class="app">
-<div class="top"><div><h1>Stock Profit Harvester</h1><p class="sub">Live prices update automatically every 5 minutes. Data saves on this device.</p></div><div class="buttons"><button class="primary" id="refreshPrices">↻ Refresh Prices</button><button id="settings">Price Settings</button><button id="add">+ Add Stock</button><button id="export">Export Data</button><label class="file-label">Import Data<input id="import" type="file" accept="application/json"></label><button id="reset">Reset</button></div></div>
+<div class="top"><div><h1>Harvester Turtle</h1><p class="sub">Live prices update automatically every 5 minutes. Data saves on this device.</p></div><div class="buttons"><button class="primary" id="refreshPrices">↻ Refresh Prices</button><button id="settings">Price Settings</button><button id="add">+ Add Stock</button><button id="export">Export Data</button><label class="file-label">Import Data<input id="import" type="file" accept="application/json"></label><button id="reset">Reset</button></div></div>
 <div id="priceStatus" class="note" style="margin:12px 0">Price service not configured yet.</div><section class="summary"><div class="metric"><small>Total Invested</small><strong id="totalInvested">$0.00</strong></div><div class="metric"><small>Current Value</small><strong id="totalValue">$0.00</strong></div><div class="metric"><small>Total Profit</small><strong id="totalProfit">$0.00</strong></div><div class="metric"><small>Harvest Available</small><strong id="totalHarvest">$0.00</strong></div></section>
 <div class="table-wrap"><table class="stock-table"><thead><tr>
 <th>Stock</th><th>Current Price (Live)</th><th>Buy Price</th><th>Invested</th><th>Shares</th><th>Current Value</th><th>Profit</th><th>Growth Goal</th><th>Harvest %</th><th>Minimum</th><th>Harvest Price</th><th>Previous Close</th><th>Day Change</th><th>Action</th><th>Harvest Cash</th><th>Suggestion</th><th>Sell?</th><th>Buy?</th><th></th>
 </tr></thead><tbody id="rows"></tbody></table></div>
-<p class="note"><strong>Market data:</strong> Prices come from the configured Twelve Data connection. Depending on your data plan and exchange, quotes may be delayed. This is an educational calculator, not financial advice.</p>
-<div class="modal" id="settingsModal"><div class="modal-card"><h2>Automatic Price Settings</h2><p>Enter your published Wix quote endpoint. Example:<br><code>https://www.yourdomain.com/_functions/quotes</code></p><label>Quote API URL</label><input id="quoteApiUrl" placeholder="https://www.yourdomain.com/_functions/quotes"><div class="buttons"><button class="primary" id="saveSettings">Save & Test</button><button id="closeSettings">Cancel</button></div></div></div></main>
+<p class="note"><strong>Market data:</strong> Prices come from Twelve Data through your secure Cloudflare Worker connection. Depending on your data plan and exchange, quotes may be delayed. This is an educational calculator, not financial advice.</p>
+<div class="modal" id="settingsModal"><div class="modal-card"><h2>Automatic Price Settings</h2><p>Enter your Cloudflare Worker quote URL. Example:<br><code>https://harvester-turtle-quotes.yourname.workers.dev</code></p><label>Quote API URL</label><input id="quoteApiUrl" placeholder="https://harvester-turtle-quotes.yourname.workers.dev"><div class="buttons"><button class="primary" id="saveSettings">Save & Test</button><button id="closeSettings">Cancel</button></div></div></div></main>
 <script>
 const seed=[
 {symbol:'MRVL',current:220,buy:205.57,invested:20,goal:.03,harvest:.20,min:1,prev:210.99},
@@ -69,7 +69,7 @@ body.addEventListener('change',e=>{const el=e.target;if(!el.dataset.key)return;r
 body.addEventListener('click',e=>{if(e.target.dataset.remove!==undefined){stocks.splice(+e.target.dataset.remove,1);render()}});
 document.getElementById('add').onclick=()=>{stocks.push({symbol:'NEW',current:0,buy:0,invested:0,goal:.03,harvest:.20,min:1,prev:0});render()};
 document.getElementById('reset').onclick=()=>{if(confirm('Reset all data to the original Excel values?')){stocks=structuredClone(seed);render()}};
-document.getElementById('export').onclick=()=>{const blob=new Blob([JSON.stringify(stocks,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='harvester-data.json';a.click();URL.revokeObjectURL(a.href)};
+document.getElementById('export').onclick=()=>{const blob=new Blob([JSON.stringify(stocks,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='harvester-turtle-data.json';a.click();URL.revokeObjectURL(a.href)};
 document.getElementById('import').onchange=async e=>{try{const d=JSON.parse(await e.target.files[0].text());if(!Array.isArray(d))throw 0;stocks=d;render()}catch{alert('That file is not valid Harvester data.')}};
 const modal=document.getElementById('settingsModal'), apiInput=document.getElementById('quoteApiUrl'), statusEl=document.getElementById('priceStatus');
 function getApiUrl(){return localStorage.getItem('harvesterQuoteApi')||''}
