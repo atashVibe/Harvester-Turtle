@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Stock Profit Harvester</title>
+<style>
+:root{--bg:#f5f7fb;--card:#fff;--ink:#172033;--muted:#667085;--line:#dfe4ec;--accent:#1769e0;--good:#117a45;--warn:#9a6700;--bad:#b42318}
+*{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--ink);font-family:Arial,Helvetica,sans-serif}
+.app{max-width:1500px;margin:auto;padding:18px}.top{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+h1{font-size:clamp(22px,4vw,34px);margin:0}.sub{color:var(--muted);margin:5px 0 0}.buttons{display:flex;gap:8px;flex-wrap:wrap}
+button,.file-label{border:1px solid var(--line);background:#fff;padding:9px 13px;border-radius:9px;cursor:pointer;font-weight:700;color:var(--ink)}
+button.primary{background:var(--accent);color:#fff;border-color:var(--accent)}input[type=file]{display:none}
+.summary{display:grid;grid-template-columns:repeat(4,minmax(150px,1fr));gap:10px;margin:16px 0}.metric{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px}.metric small{color:var(--muted)}.metric strong{display:block;font-size:23px;margin-top:5px}
+.table-wrap{overflow:auto;background:#fff;border:1px solid var(--line);border-radius:12px}.stock-table{width:100%;border-collapse:collapse;min-width:1450px}.stock-table th,.stock-table td{padding:8px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}.stock-table th{position:sticky;top:0;background:#eef3fb;z-index:2;font-size:12px}.stock-table th:first-child,.stock-table td:first-child{text-align:left;position:sticky;left:0;background:#fff;z-index:1}.stock-table th:first-child{background:#eef3fb;z-index:3}
+.stock-table input{width:92px;padding:7px;border:1px solid #cfd6e2;border-radius:7px;text-align:right}.stock-table input.symbol{width:75px;text-transform:uppercase;text-align:left;font-weight:700}.pill{display:inline-block;border-radius:999px;padding:4px 8px;font-size:12px;font-weight:700}.good{background:#dcfae6;color:var(--good)}.warn{background:#fff3cd;color:var(--warn)}.bad{background:#fee4e2;color:var(--bad)}.neutral{background:#eef2f6;color:#475467}.remove{padding:5px 8px;color:var(--bad)}
+.note{margin-top:12px;color:var(--muted);font-size:13px;line-height:1.45}.modal{display:none;position:fixed;inset:0;background:rgba(16,24,40,.55);z-index:20;padding:20px}.modal.open{display:flex;align-items:center;justify-content:center}.modal-card{width:min(620px,100%);background:#fff;border-radius:14px;padding:20px}.modal-card input{width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;margin:8px 0 14px}.status-good{color:var(--good)}.status-bad{color:var(--bad)} @media(max-width:700px){.summary{grid-template-columns:1fr 1fr}.app{padding:10px}}
+</style>
+</head>
+<body><main class="app">
+<div class="top"><div><h1>Stock Profit Harvester</h1><p class="sub">Live prices update automatically every 5 minutes. Data saves on this device.</p></div><div class="buttons"><button class="primary" id="refreshPrices">↻ Refresh Prices</button><button id="settings">Price Settings</button><button id="add">+ Add Stock</button><button id="export">Export Data</button><label class="file-label">Import Data<input id="import" type="file" accept="application/json"></label><button id="reset">Reset</button></div></div>
+<div id="priceStatus" class="note" style="margin:12px 0">Price service not configured yet.</div><section class="summary"><div class="metric"><small>Total Invested</small><strong id="totalInvested">$0.00</strong></div><div class="metric"><small>Current Value</small><strong id="totalValue">$0.00</strong></div><div class="metric"><small>Total Profit</small><strong id="totalProfit">$0.00</strong></div><div class="metric"><small>Harvest Available</small><strong id="totalHarvest">$0.00</strong></div></section>
+<div class="table-wrap"><table class="stock-table"><thead><tr>
+<th>Stock</th><th>Current Price (Live)</th><th>Buy Price</th><th>Invested</th><th>Shares</th><th>Current Value</th><th>Profit</th><th>Growth Goal</th><th>Harvest %</th><th>Minimum</th><th>Harvest Price</th><th>Previous Close</th><th>Day Change</th><th>Action</th><th>Harvest Cash</th><th>Suggestion</th><th>Sell?</th><th>Buy?</th><th></th>
+</tr></thead><tbody id="rows"></tbody></table></div>
+<p class="note"><strong>Market data:</strong> Prices come from the configured Twelve Data connection. Depending on your data plan and exchange, quotes may be delayed. This is an educational calculator, not financial advice.</p>
+<div class="modal" id="settingsModal"><div class="modal-card"><h2>Automatic Price Settings</h2><p>Enter your published Wix quote endpoint. Example:<br><code>https://www.yourdomain.com/_functions/quotes</code></p><label>Quote API URL</label><input id="quoteApiUrl" placeholder="https://www.yourdomain.com/_functions/quotes"><div class="buttons"><button class="primary" id="saveSettings">Save & Test</button><button id="closeSettings">Cancel</button></div></div></div></main>
+<script>
+const seed=[
+{symbol:'MRVL',current:220,buy:205.57,invested:20,goal:.03,harvest:.20,min:1,prev:210.99},
+{symbol:'NVDA',current:208.76,buy:207.33,invested:34.7,goal:.03,harvest:.20,min:1,prev:212.06},
+{symbol:'MSFT',current:381.58,buy:396.45,invested:1.49,goal:.03,harvest:.20,min:1,prev:390.34},
+{symbol:'SPY',current:738.3,buy:753.98,invested:12.06,goal:.03,harvest:.20,min:1,prev:747.41},
+{symbol:'STI',current:6.84,buy:8.48,invested:14.95,goal:.03,harvest:.20,min:1,prev:6.55},
+{symbol:'VSAT',current:74.27,buy:75.44,invested:5.18,goal:.03,harvest:.20,min:1,prev:74.37},
+{symbol:'CTOS',current:10.88,buy:10.43,invested:10.43,goal:.03,harvest:.20,min:1,prev:10.53},
+{symbol:'PYPL',current:56,buy:54.66,invested:2.76,goal:.03,harvest:.20,min:1,prev:55.51},
+{symbol:'ASTS',current:59.18,buy:59.22,invested:5.45,goal:.03,harvest:.20,min:1,prev:61.95},
+{symbol:'SPCX',current:118.24,buy:122.41,invested:20,goal:.03,harvest:.20,min:1,prev:115.26}
+];
+let stocks=load(); const body=document.getElementById('rows');
+function load(){try{return JSON.parse(localStorage.getItem('harvesterData'))||structuredClone(seed)}catch{return structuredClone(seed)}}
+function save(){localStorage.setItem('harvesterData',JSON.stringify(stocks))}
+const money=n=>Number.isFinite(n)?n.toLocaleString(undefined,{style:'currency',currency:'USD',minimumFractionDigits:2,maximumFractionDigits:2}):'—';
+const num=(n,d=4)=>Number.isFinite(n)?n.toLocaleString(undefined,{maximumFractionDigits:d}):'—';
+const pct=n=>Number.isFinite(n)?(n*100).toFixed(2)+'%':'—';
+function calc(s){
+ const shares=s.buy>0?s.invested/s.buy:0, value=shares*s.current, profit=value-s.invested;
+ const minimum=Math.max(Number(s.min)||0,(Number(s.invested)||0)*.005); const harvestRate=Number(s.harvest)||0;
+ const harvestPrice=(shares>0&&harvestRate>0)?s.buy+(minimum/(shares*harvestRate)):0;
+ const change=s.prev>0?(s.current-s.prev)/s.prev:0;
+ const action=(profit*harvestRate)>=minimum?'Sell':'Hold'; const cash=action==='Sell'?profit*harvestRate:0;
+ let suggestion='Hold'; if(change<=-.04)suggestion='Strong Buy'; else if(change<=-.02)suggestion='Buy More'; else if(profit>=minimum&&change>=.04)suggestion='Strong Harvest'; else if(profit>=minimum&&change>=.02)suggestion='Harvest';
+ const sell=change>0&&s.current>s.buy&&profit>0?'Yes':''; const buy=s.current<s.prev?'Sure':(s.current<s.buy?'Maybe':'');
+ return{shares,value,profit,minimum,harvestPrice,change,action,cash,suggestion,sell,buy};
+}
+function pill(text){let c='neutral';if(['Sell','Harvest','Strong Harvest','Yes'].includes(text))c='good';if(['Buy More','Maybe'].includes(text))c='warn';if(['Strong Buy','Sure'].includes(text))c='bad';return `<span class="pill ${c}">${text||'—'}</span>`}
+function input(i,key,val,step='0.01',cls=''){const live=['current','prev'].includes(key)?'readonly title="Updated automatically"':'';return `<input class="${cls}" data-i="${i}" data-key="${key}" type="${key==='symbol'?'text':'number'}" step="${step}" value="${val}" ${live}>`}
+function render(){body.innerHTML='';let ti=0,tv=0,tp=0,th=0;stocks.forEach((s,i)=>{const c=calc(s);ti+=+s.invested||0;tv+=c.value;tp+=c.profit;th+=c.cash;body.insertAdjacentHTML('beforeend',`<tr>
+<td>${input(i,'symbol',s.symbol,'','symbol')}</td><td>${input(i,'current',s.current)}</td><td>${input(i,'buy',s.buy)}</td><td>${input(i,'invested',s.invested)}</td><td>${num(c.shares,6)}</td><td>${money(c.value)}</td><td>${money(c.profit)}</td><td>${input(i,'goal',s.goal,.01)} (${pct(s.goal)})</td><td>${input(i,'harvest',s.harvest,.01)} (${pct(s.harvest)})</td><td>${input(i,'min',s.min)}</td><td>${money(c.harvestPrice)}</td><td>${input(i,'prev',s.prev)}</td><td>${pct(c.change)}</td><td>${pill(c.action)}</td><td>${c.cash?money(c.cash):'—'}</td><td>${pill(c.suggestion)}</td><td>${pill(c.sell)}</td><td>${pill(c.buy)}</td><td><button class="remove" data-remove="${i}">×</button></td></tr>`)});
+ totalInvested.textContent=money(ti);totalValue.textContent=money(tv);totalProfit.textContent=money(tp);totalProfit.style.color=tp>=0?'var(--good)':'var(--bad)';totalHarvest.textContent=money(th);save();}
+body.addEventListener('input',e=>{
+ const el=e.target;if(!el.dataset.key)return;
+ const i=+el.dataset.i,key=el.dataset.key;
+ stocks[i][key]=key==='symbol'?el.value.toUpperCase():(el.value===''?0:Number(el.value));
+ save();
+});
+body.addEventListener('change',e=>{const el=e.target;if(!el.dataset.key)return;render()});
+body.addEventListener('click',e=>{if(e.target.dataset.remove!==undefined){stocks.splice(+e.target.dataset.remove,1);render()}});
+document.getElementById('add').onclick=()=>{stocks.push({symbol:'NEW',current:0,buy:0,invested:0,goal:.03,harvest:.20,min:1,prev:0});render()};
+document.getElementById('reset').onclick=()=>{if(confirm('Reset all data to the original Excel values?')){stocks=structuredClone(seed);render()}};
+document.getElementById('export').onclick=()=>{const blob=new Blob([JSON.stringify(stocks,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='harvester-data.json';a.click();URL.revokeObjectURL(a.href)};
+document.getElementById('import').onchange=async e=>{try{const d=JSON.parse(await e.target.files[0].text());if(!Array.isArray(d))throw 0;stocks=d;render()}catch{alert('That file is not valid Harvester data.')}};
+const modal=document.getElementById('settingsModal'), apiInput=document.getElementById('quoteApiUrl'), statusEl=document.getElementById('priceStatus');
+function getApiUrl(){return localStorage.getItem('harvesterQuoteApi')||''}
+function setStatus(text,ok=null){statusEl.textContent=text;statusEl.className='note '+(ok===true?'status-good':ok===false?'status-bad':'')}
+async function refreshPrices(showAlerts=false){
+ const base=getApiUrl(); const symbols=[...new Set(stocks.map(s=>(s.symbol||'').trim().toUpperCase()).filter(Boolean))];
+ if(!base){setStatus('Automatic prices are not configured. Open Price Settings.',false); if(showAlerts)modal.classList.add('open'); return}
+ if(!symbols.length)return;
+ setStatus('Updating market prices…');
+ try{
+  const joiner=base.includes('?')?'&':'?'; const r=await fetch(`${base}${joiner}symbols=${encodeURIComponent(symbols.join(','))}`,{cache:'no-store'});
+  if(!r.ok)throw new Error(`Price service returned ${r.status}`); const data=await r.json();
+  if(data.error)throw new Error(data.error); const quotes=data.quotes||data;
+  let updated=0;
+  stocks.forEach(s=>{const q=quotes[(s.symbol||'').toUpperCase()];if(q&&Number(q.price)>0){s.current=Number(q.price);if(Number(q.previousClose)>0)s.prev=Number(q.previousClose);updated++}});
+  render(); const stamp=data.updatedAt?new Date(data.updatedAt):new Date(); setStatus(`Updated ${updated} of ${symbols.length} symbols at ${stamp.toLocaleTimeString()}.`,true);
+ }catch(err){setStatus(`Price update failed: ${err.message}`,false)}
+}
+document.getElementById('settings').onclick=()=>{apiInput.value=getApiUrl();modal.classList.add('open')};
+document.getElementById('closeSettings').onclick=()=>modal.classList.remove('open');
+document.getElementById('saveSettings').onclick=()=>{const u=apiInput.value.trim().replace(/\/$/,'');if(!/^https:\/\//i.test(u)){alert('Please enter a secure https:// URL.');return}localStorage.setItem('harvesterQuoteApi',u);modal.classList.remove('open');refreshPrices(true)};
+document.getElementById('refreshPrices').onclick=()=>refreshPrices(true);
+render(); refreshPrices(false); setInterval(()=>refreshPrices(false),300000);
+</script></body></html>
