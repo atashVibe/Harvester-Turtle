@@ -40,7 +40,7 @@
         <dt>Total Invested</dt>
         <dd>The total amount you entered as invested in all stocks.</dd>
         <dt>Current Value</dt>
-        <dd>The estimated value of all calculated shares at their current prices.</dd>
+        <dd>The estimated value of all calculated shares at their current prices. It is green when it is higher than Total Invested; otherwise it is red.</dd>
         <dt>Total Profit</dt>
         <dd>Current Value minus Total Invested. A negative number is a loss.</dd>
         <dt>Harvest Available</dt>
@@ -80,8 +80,9 @@
     </section>
 
     <section class="help-card">
-      <h2>Automatic prices</h2>
-      <p>Prices update when the page opens and every two minutes while the page remains open. After an update, the message shows the update time.</p>
+      <h2>Updating prices</h2>
+      <p>Prices update once when the page opens. To update them again, refresh or reload the page. There is no automatic timer running in the background.</p>
+      <p>After a successful update, the message at the top shows <strong>Updated on:</strong> followed by the time.</p>
       <p>The free price plan processes large portfolios in groups. Market prices may be delayed or differ from a brokerage app because data sources and trading sessions can be different.</p>
       <p>Use <strong>Price Settings</strong> only if the Cloudflare Worker address needs to be changed.</p>
     </section>
@@ -96,7 +97,7 @@
         <dt>Import</dt>
         <dd>Restores portfolio data from a Harvester Turtle export file.</dd>
         <dt>Price Settings</dt>
-        <dd>Changes the automatic-price service address.</dd>
+        <dd>Changes the price-service address used when the page is refreshed.</dd>
       </dl>
     </section>
 

@@ -73,6 +73,7 @@ function render(){
     </tr>`);
   });
   totalInvested.textContent=money(ti);totalValue.textContent=money(tv);totalProfit.textContent=money(tp);
+  totalValue.className=tv>ti?"positive":"negative";
   totalProfit.className=tp>=0?"positive":"negative";totalHarvest.textContent=money(th);save();
 }
 rows.addEventListener("input",event=>{
@@ -110,6 +111,9 @@ document.addEventListener("keydown",event=>{if(event.key==="Escape")setMenu(fals
 const DEFAULT_API_URL="https://summer-river-8271.atash1317.workers.dev";
 const getApiUrl=()=>localStorage.getItem("harvesterQuoteApi")||DEFAULT_API_URL;
 function setStatus(text,state=""){priceStatus.textContent=text;priceStatus.className=`status ${state}`}
+const savedUpdateTime=localStorage.getItem("harvesterLastPriceUpdate");
+if(savedUpdateTime)setStatus(`Updated on: ${savedUpdateTime}`,"good");
+else setStatus("Prices update when this page is refreshed.");
 const wait=milliseconds=>new Promise(resolve=>setTimeout(resolve,milliseconds));
 let priceRefreshRunning=false;
 settings.onclick=()=>{quoteApiUrl.value=getApiUrl();settingsModal.classList.add("open")};
@@ -124,17 +128,14 @@ async function refreshPrices(openSettings=false){
   if(!symbols.length)return setStatus("Add a valid stock symbol first.","bad");
   if(priceRefreshRunning){if(openSettings)setStatus("A price update is already running. Please wait for it to finish.");return}
   priceRefreshRunning=true;
-  setStatus("Updating prices…");
   try{
     const pending=[...symbols],attempts={},completed=new Set(),permanentFailures=new Set();
     let round=0;
     while(pending.length){
       if(round>0){
-        setStatus("Updating prices…");
         await wait(65000);
       }
       const batch=pending.splice(0,8);
-      setStatus("Updating prices…");
       const response=await fetch(`${base}${base.includes("?")?"&":"?"}symbols=${encodeURIComponent(batch.join(","))}`,{cache:"no-store"});
       const data=await response.json();
       const quotes=data.quotes||{};
@@ -152,6 +153,7 @@ async function refreshPrices(openSettings=false){
     }
     if(completed.size){
       const updatedTime=new Date().toLocaleTimeString([],{hour:"numeric",minute:"2-digit"});
+      localStorage.setItem("harvesterLastPriceUpdate",updatedTime);
       setStatus(`Updated on: ${updatedTime}`,"good");
     }else{
       setStatus("Price update failed. Prices already received were kept.","bad");
@@ -162,4 +164,4 @@ async function refreshPrices(openSettings=false){
     priceRefreshRunning=false;
   }
 }
-render();refreshPrices(false);setInterval(()=>refreshPrices(false),120000);
+render();refreshPrices(false);
