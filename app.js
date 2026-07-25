@@ -86,7 +86,8 @@ importData.onchange=async event=>{
   }catch{alert("That file is not valid Harvester Turtle data.")}finally{event.target.value=""}
 };
 const settingsModal=document.getElementById("settingsModal"),quoteApiUrl=document.getElementById("quoteApiUrl"),priceStatus=document.getElementById("priceStatus");
-const getApiUrl=()=>localStorage.getItem("harvesterQuoteApi")||"";
+const DEFAULT_API_URL="https://summer-river-8271.atash1317.workers.dev";
+const getApiUrl=()=>localStorage.getItem("harvesterQuoteApi")||DEFAULT_API_URL;
 function setStatus(text,state=""){priceStatus.textContent=text;priceStatus.className=`status ${state}`}
 const wait=milliseconds=>new Promise(resolve=>setTimeout(resolve,milliseconds));
 let priceRefreshRunning=false;
