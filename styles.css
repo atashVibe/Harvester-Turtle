@@ -61,8 +61,6 @@ td input.symbol { width: 78px; text-align: left; text-transform: uppercase; font
 @media (max-width: 900px) {
   .summary { grid-template-columns: repeat(2, 1fr); }
   .app { padding: 12px; }
-}
-
-@media (max-width: 520px) {
-  .summary { grid-template-columns: 1fr; }
+  .metric { padding: 12px; }
+  .metric strong { font-size: 20px; }
 }

@@ -42,7 +42,6 @@
       : 0;
     const eligible = profit >= requiredProfit && item.harvestRate > 0;
     const harvestCash = eligible ? profit * item.harvestRate : 0;
-    const sharesToSell = item.current > 0 ? harvestCash / item.current : 0;
 
     let suggestion = "Hold";
     if (dayChange <= -0.04) suggestion = "Strong Buy";
@@ -71,7 +70,6 @@
       eligible,
       action: eligible ? "Harvest" : "Wait",
       harvestCash,
-      sharesToSell,
       suggestion,
       buySignal,
     };

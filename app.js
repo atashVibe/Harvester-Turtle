@@ -41,10 +41,10 @@ function input(stock,key,value,{step="0.01",className="",min="0",max=""}={}){
 }
 function render(){
   const calculated=stocks.map(calculate);
-  rows.innerHTML=calculated.length?"":'<tr><td class="empty" colspan="20">Add a stock to begin.</td></tr>';
-  let ti=0,tv=0,tp=0,th=0,ts=0;
+  rows.innerHTML=calculated.length?"":'<tr><td class="empty" colspan="19">Add a stock to begin.</td></tr>';
+  let ti=0,tv=0,tp=0,th=0;
   calculated.forEach(stock=>{
-    ti+=stock.invested;tv+=stock.currentValue;tp+=stock.profit;th+=stock.harvestCash;ts+=stock.sharesToSell;
+    ti+=stock.invested;tv+=stock.currentValue;tp+=stock.profit;th+=stock.harvestCash;
     rows.insertAdjacentHTML("beforeend",`<tr>
       <td>${input(stock,"symbol",stock.symbol,{className:"symbol",min:""})}</td>
       <td>${input(stock,"current",stock.current)}</td><td>${input(stock,"buyPrice",stock.buyPrice)}</td>
@@ -56,12 +56,12 @@ function render(){
       <td>${input(stock,"minimumHarvest",stock.minimumHarvest)}</td><td>${money(stock.harvestPrice)}</td>
       <td>${input(stock,"previousClose",stock.previousClose)}</td><td>${percent(stock.dayChange)}</td>
       <td>${pill(stock.action)}</td><td>${stock.harvestCash?money(stock.harvestCash):"—"}</td>
-      <td>${stock.sharesToSell?number(stock.sharesToSell):"—"}</td><td>${pill(stock.suggestion)}</td><td>${pill(stock.buySignal)}</td>
+      <td>${pill(stock.suggestion)}</td><td>${pill(stock.buySignal)}</td>
       <td><button class="remove" data-remove="${escapeHtml(stock.id)}" aria-label="Remove ${escapeHtml(stock.symbol)}">×</button></td>
     </tr>`);
   });
   totalInvested.textContent=money(ti);totalValue.textContent=money(tv);totalProfit.textContent=money(tp);
-  totalProfit.className=tp>=0?"positive":"negative";totalHarvest.textContent=money(th);totalSharesToSell.textContent=number(ts);save();
+  totalProfit.className=tp>=0?"positive":"negative";totalHarvest.textContent=money(th);save();
 }
 rows.addEventListener("input",event=>{
   const element=event.target;if(!element.dataset.key)return;
