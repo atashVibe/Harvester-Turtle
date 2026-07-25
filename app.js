@@ -104,7 +104,7 @@ function setMenu(open){
   menuToggle.setAttribute("aria-label",open?"Close menu":"Open menu");
 }
 menuToggle.onclick=event=>{event.stopPropagation();setMenu(appMenu.hidden)};
-appMenu.addEventListener("click",event=>{event.stopPropagation();if(event.target.closest("button,.file-button"))setMenu(false)});
+appMenu.addEventListener("click",event=>{event.stopPropagation();if(event.target.closest("button,.file-button,.menu-link"))setMenu(false)});
 document.addEventListener("click",()=>setMenu(false));
 document.addEventListener("keydown",event=>{if(event.key==="Escape")setMenu(false)});
 const DEFAULT_API_URL="https://summer-river-8271.atash1317.workers.dev";

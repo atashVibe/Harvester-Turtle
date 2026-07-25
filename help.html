@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Help for the Harvester Turtle portfolio calculator.">
+  <title>Help — Harvester Turtle</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<main class="app help-app">
+  <header class="help-header">
+    <a class="back-link" href="index.html">← Back to Harvester Turtle</a>
+    <h1>Help</h1>
+    <p class="help-intro">Harvester Turtle follows your stock positions, calculates profit, and shows when a position meets your harvest rules. It does not place trades or connect to your brokerage account.</p>
+  </header>
+
+  <div class="help-grid">
+    <section class="help-card wide">
+      <h2>Quick start</h2>
+      <ol>
+        <li>Open the three-line menu and choose <strong>Add Stock</strong>.</li>
+        <li>Replace NEW with the stock symbol, then enter its buy price and the amount invested.</li>
+        <li>Check the current price, growth goal, harvest percentage, and minimum cash.</li>
+        <li>Read the colored lights, Action, Suggestion, and Harvest Cash results.</li>
+      </ol>
+    </section>
+
+    <section class="help-card">
+      <h2>The colored lights</h2>
+      <div class="light-key"><span class="signal red active" aria-hidden="true"></span><span><strong>Red — Strong Buy:</strong> the Suggestion column says Strong Buy.</span></div>
+      <div class="light-key"><span class="signal yellow active" aria-hidden="true"></span><span><strong>Yellow — Buy More:</strong> the Suggestion column says Buy More.</span></div>
+      <div class="light-key"><span class="signal green active" aria-hidden="true"></span><span><strong>Green — Harvest:</strong> the Action column says Harvest.</span></div>
+      <p>A gray light means that signal is not active. More than one light can be active when the Action and Suggestion results are different.</p>
+    </section>
+
+    <section class="help-card">
+      <h2>Summary cards</h2>
+      <dl>
+        <dt>Total Invested</dt>
+        <dd>The total amount you entered as invested in all stocks.</dd>
+        <dt>Current Value</dt>
+        <dd>The estimated value of all calculated shares at their current prices.</dd>
+        <dt>Total Profit</dt>
+        <dd>Current Value minus Total Invested. A negative number is a loss.</dd>
+        <dt>Harvest Available</dt>
+        <dd>The total cash the rules currently allow you to harvest.</dd>
+      </dl>
+    </section>
+
+    <section class="help-card wide">
+      <h2>What you enter</h2>
+      <dl>
+        <dt>Stock</dt>
+        <dd>The market symbol, such as AAPL or MRVL.</dd>
+        <dt>Current</dt>
+        <dd>The latest price received from the price service. You can also enter it manually.</dd>
+        <dt>Buy Price</dt>
+        <dd>Your average price paid for one share.</dd>
+        <dt>Invested</dt>
+        <dd>The total amount of money invested in that stock.</dd>
+        <dt>Growth Goal</dt>
+        <dd>The minimum profit target written as a decimal. For example, 0.03 means 3%.</dd>
+        <dt>Harvest %</dt>
+        <dd>The part of eligible profit to harvest. For example, 0.20 means 20%.</dd>
+        <dt>Min. Cash</dt>
+        <dd>The smallest harvest amount you want the calculation to produce.</dd>
+        <dt>Previous Close</dt>
+        <dd>The stock's closing price from the previous regular market day.</dd>
+      </dl>
+    </section>
+
+    <section class="help-card wide">
+      <h2>How the harvest calculation works</h2>
+      <p class="help-formula"><strong>Shares</strong> = Invested ÷ Buy Price<br>
+      <strong>Current Value</strong> = Shares × Current Price<br>
+      <strong>Profit</strong> = Current Value − Invested</p>
+      <p>The app calculates two profit requirements: the profit needed to meet your Growth Goal and the profit needed for your Harvest % to produce at least Min. Cash. It uses the larger requirement.</p>
+      <p>Action changes to <strong>Harvest</strong> only after the current profit reaches that larger requirement. Harvest Cash is then the current profit multiplied by the Harvest %.</p>
+    </section>
+
+    <section class="help-card">
+      <h2>Automatic prices</h2>
+      <p>Prices update when the page opens and every two minutes while the page remains open. After an update, the message shows the update time.</p>
+      <p>The free price plan processes large portfolios in groups. Market prices may be delayed or differ from a brokerage app because data sources and trading sessions can be different.</p>
+      <p>Use <strong>Price Settings</strong> only if the Cloudflare Worker address needs to be changed.</p>
+    </section>
+
+    <section class="help-card">
+      <h2>Menu options</h2>
+      <dl>
+        <dt>Add Stock</dt>
+        <dd>Adds a new editable row.</dd>
+        <dt>Export</dt>
+        <dd>Downloads a backup of your portfolio data.</dd>
+        <dt>Import</dt>
+        <dd>Restores portfolio data from a Harvester Turtle export file.</dd>
+        <dt>Price Settings</dt>
+        <dd>Changes the automatic-price service address.</dd>
+      </dl>
+    </section>
+
+    <section class="help-card wide">
+      <h2>Saving and safety</h2>
+      <p>Your portfolio entries are saved in the current browser on the current device. Export a backup before clearing browser data or moving to another device, then use Import on the new device.</p>
+      <p>Harvester Turtle is an educational calculator. Its signals are based only on the formulas shown above; they are not personalized financial advice and do not guarantee a profit.</p>
+    </section>
+  </div>
+</main>
+</body>
+</html>
