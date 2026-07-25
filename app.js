@@ -36,6 +36,18 @@ function pill(text){
   else if(text==="Strong Buy")tone="bad";
   return `<span class="pill ${tone}">${escapeHtml(text||"—")}</span>`;
 }
+function signalLights(stock){
+  const red=stock.suggestion==="Strong Buy";
+  const yellow=stock.suggestion==="Buy More";
+  const green=stock.action==="Harvest";
+  const active=[red&&"Strong Buy",yellow&&"Buy More",green&&"Harvest"].filter(Boolean);
+  const label=active.length?active.join(", "):"Hold";
+  return `<span class="signal-lights" role="img" aria-label="${label}" title="${label}">
+    <span class="signal red ${red?"active":""}"></span>
+    <span class="signal yellow ${yellow?"active":""}"></span>
+    <span class="signal green ${green?"active":""}"></span>
+  </span>`;
+}
 function input(stock,key,value,{step="0.01",className="",min="0",max=""}={}){
   return `<input class="${className}" data-id="${escapeHtml(stock.id)}" data-key="${key}" type="${key==="symbol"?"text":"number"}" step="${step}" min="${min}" ${max?`max="${max}"`:""} value="${escapeHtml(value)}">`;
 }
@@ -46,7 +58,7 @@ function render(){
   calculated.forEach(stock=>{
     ti+=stock.invested;tv+=stock.currentValue;tp+=stock.profit;th+=stock.harvestCash;
     rows.insertAdjacentHTML("beforeend",`<tr>
-      <td>${input(stock,"symbol",stock.symbol,{className:"symbol",min:""})}</td>
+      <td><div class="symbol-cell">${input(stock,"symbol",stock.symbol,{className:"symbol",min:""})}${signalLights(stock)}</div></td>
       <td>${input(stock,"current",stock.current)}</td><td>${input(stock,"buyPrice",stock.buyPrice)}</td>
       <td>${input(stock,"invested",stock.invested)}</td><td>${number(stock.shares)}</td>
       <td>${money(stock.currentValue)}</td><td class="${stock.profit>=0?"positive":"negative"}">${money(stock.profit)}</td>
@@ -112,17 +124,17 @@ async function refreshPrices(openSettings=false){
   if(!symbols.length)return setStatus("Add a valid stock symbol first.","bad");
   if(priceRefreshRunning){if(openSettings)setStatus("A price update is already running. Please wait for it to finish.");return}
   priceRefreshRunning=true;
-  setStatus("Updating market prices…");
+  setStatus("Updating prices…");
   try{
     const pending=[...symbols],attempts={},completed=new Set(),permanentFailures=new Set();
     let round=0;
     while(pending.length){
       if(round>0){
-        setStatus(`Updated ${completed.size} of ${symbols.length}. Waiting 65 seconds for the free price limit to reset…`);
+        setStatus("Updating prices…");
         await wait(65000);
       }
       const batch=pending.splice(0,8);
-      setStatus(`Updating ${batch.length} symbol${batch.length===1?"":"s"}… ${completed.size} of ${symbols.length} complete.`);
+      setStatus("Updating prices…");
       const response=await fetch(`${base}${base.includes("?")?"&":"?"}symbols=${encodeURIComponent(batch.join(","))}`,{cache:"no-store"});
       const data=await response.json();
       const quotes=data.quotes||{};
@@ -138,7 +150,12 @@ async function refreshPrices(openSettings=false){
       render();
       round++;
     }
-    setStatus(`Updated ${completed.size} of ${symbols.length} symbols${permanentFailures.size?`; ${permanentFailures.size} failed after 3 attempts`:""}. Automatic refresh runs every 2 minutes.`,completed.size?"good":"bad");
+    if(completed.size){
+      const updatedTime=new Date().toLocaleTimeString([],{hour:"numeric",minute:"2-digit"});
+      setStatus(`Updated on: ${updatedTime}`,"good");
+    }else{
+      setStatus("Price update failed. Prices already received were kept.","bad");
+    }
   }catch(error){
     setStatus(`Price update stopped: ${error.message}. Prices already received were kept.`,"bad");
   }finally{
