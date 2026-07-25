@@ -1,0 +1,94 @@
+Harvester Turtle — Session Summary (July 25, 2026)
+
+Project locations:
+- Local GitHub repository: C:\Harvester-Turtle
+- GitHub repository: https://github.com/atashVibe/Harvester-Turtle
+- Website: https://atashvibe.github.io/Harvester-Turtle/
+- Original workbook: C:\Harvester-Turtle\Harvester Trutle.xlsx
+- Only the first worksheet should be used. Ignore the second worksheet.
+
+What we reviewed:
+- Reviewed the formulas from the first Excel worksheet.
+- Corrected and clarified the portfolio and harvesting calculations.
+- Connected Growth Goal to the harvest formula because it was not properly used in the workbook.
+
+Current calculation rules:
+- Shares = Invested ÷ Buy Price
+- Current Value = Shares × Current Price
+- Profit = Current Value − Invested
+- Goal Profit = Invested × Growth Goal
+- Minimum Required Profit = Minimum Cash ÷ Harvest %
+- Required Profit = the larger of Goal Profit and Minimum Required Profit
+- Harvest Price = (Invested + Required Profit) ÷ Shares
+- Harvest Cash = Profit × Harvest %, but only after Required Profit is reached
+
+Automatic prices:
+- Created a Cloudflare Worker named summer-river-8271.
+- Worker URL:
+  https://summer-river-8271.atash1317.workers.dev
+- Connected it to Twelve Data.
+- The Twelve Data API key is stored securely as a Cloudflare secret named:
+  TWELVE_DATA_API_KEY
+- Never put the API key in GitHub or the website files.
+- The Worker URL is now the default, so new devices do not need Price Settings.
+- Prices update when the page opens and every two minutes while it remains open.
+- Large portfolios are updated in groups because the free Twelve Data plan allows eight credits per minute.
+- The status message now shows only:
+  Updated on: [time]
+- Twelve Data prices can differ from Robinhood because they may use different exchanges, sessions, or delayed data.
+
+Interface changes:
+- Phone summary cards display in two columns.
+- Removed “Shares to Sell.”
+- Removed the introduction sentence under the title.
+- Removed the Refresh Prices button.
+- Added a hamburger menu containing:
+  - Help
+  - Price Settings
+  - Add Stock
+  - Export
+  - Import
+- Reset was completely removed because it could erase portfolio data. Do not add Reset again.
+
+Stock signal lights:
+- Added three vertical lights beside every stock symbol.
+- Red means Suggestion = Strong Buy.
+- Yellow means Suggestion = Buy More.
+- Green means Action = Harvest.
+- Inactive lights are gray.
+- More than one light can be active if Action and Suggestion produce different signals.
+
+Help page:
+- Added help.html.
+- Help is available from the hamburger menu.
+- It explains:
+  - How to begin
+  - Every input
+  - Summary cards
+  - Signal lights
+  - Harvest formulas
+  - Automatic prices
+  - Import and export
+  - Browser storage and safety
+- The app is educational and does not place trades.
+
+Current update package:
+C:\Users\alita\Documents\Codex\2026-07-25\i\outputs\Harvester-Turtle-help-page-update.zip
+
+Current reviewed project:
+C:\Users\alita\Documents\Codex\2026-07-25\i\outputs\Harvester-Turtle-reviewed
+
+Deployment process:
+1. Extract the newest update package.
+2. Copy its files into C:\Harvester-Turtle and replace existing versions.
+3. Open GitHub Desktop.
+4. Commit the changes to main.
+5. Click Push origin.
+6. Wait about two minutes and refresh the GitHub Pages website.
+
+Working preference:
+- I am new to GitHub, but I understand normal computer instructions.
+- Give me clear steps in reasonably sized groups.
+- Do not make every single click a separate step.
+- Explain risky changes before adding them.
+- Never add a feature that can erase portfolio data without asking first.
