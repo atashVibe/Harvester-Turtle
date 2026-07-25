@@ -86,6 +86,16 @@ importData.onchange=async event=>{
   }catch{alert("That file is not valid Harvester Turtle data.")}finally{event.target.value=""}
 };
 const settingsModal=document.getElementById("settingsModal"),quoteApiUrl=document.getElementById("quoteApiUrl"),priceStatus=document.getElementById("priceStatus");
+const menuToggle=document.getElementById("menuToggle"),appMenu=document.getElementById("appMenu");
+function setMenu(open){
+  appMenu.hidden=!open;
+  menuToggle.setAttribute("aria-expanded",String(open));
+  menuToggle.setAttribute("aria-label",open?"Close menu":"Open menu");
+}
+menuToggle.onclick=event=>{event.stopPropagation();setMenu(appMenu.hidden)};
+appMenu.addEventListener("click",event=>{event.stopPropagation();if(event.target.closest("button,.file-button"))setMenu(false)});
+document.addEventListener("click",()=>setMenu(false));
+document.addEventListener("keydown",event=>{if(event.key==="Escape")setMenu(false)});
 const DEFAULT_API_URL="https://summer-river-8271.atash1317.workers.dev";
 const getApiUrl=()=>localStorage.getItem("harvesterQuoteApi")||DEFAULT_API_URL;
 function setStatus(text,state=""){priceStatus.textContent=text;priceStatus.className=`status ${state}`}
@@ -101,9 +111,8 @@ async function refreshPrices(openSettings=false){
   const base=getApiUrl(),symbols=[...new Set(stocks.map(stock=>stock.symbol.trim().toUpperCase()).filter(symbol=>/^[A-Z0-9.-]{1,15}$/.test(symbol)))];
   if(!base){setStatus("Automatic prices are not configured. You can enter prices manually or open Price Settings.","bad");if(openSettings)settingsModal.classList.add("open");return}
   if(!symbols.length)return setStatus("Add a valid stock symbol first.","bad");
-  if(priceRefreshRunning)return setStatus("A price update is already running. Please wait for it to finish.");
+  if(priceRefreshRunning){if(openSettings)setStatus("A price update is already running. Please wait for it to finish.");return}
   priceRefreshRunning=true;
-  refreshPricesButton.disabled=true;
   setStatus("Updating market prices…");
   try{
     const pending=[...symbols],attempts={},completed=new Set(),permanentFailures=new Set();
@@ -130,13 +139,11 @@ async function refreshPrices(openSettings=false){
       render();
       round++;
     }
-    setStatus(`Updated ${completed.size} of ${symbols.length} symbols${permanentFailures.size?`; ${permanentFailures.size} failed after 3 attempts`:""}.`,completed.size?"good":"bad");
+    setStatus(`Updated ${completed.size} of ${symbols.length} symbols${permanentFailures.size?`; ${permanentFailures.size} failed after 3 attempts`:""}. Automatic refresh runs every 2 minutes.`,completed.size?"good":"bad");
   }catch(error){
     setStatus(`Price update stopped: ${error.message}. Prices already received were kept.`,"bad");
   }finally{
     priceRefreshRunning=false;
-    refreshPricesButton.disabled=false;
   }
 }
-const refreshPricesButton=document.getElementById("refreshPrices");refreshPricesButton.onclick=()=>refreshPrices(true);
-render();refreshPrices(false);setInterval(()=>refreshPrices(false),300000);
+render();refreshPrices(false);setInterval(()=>refreshPrices(false),120000);

@@ -17,10 +17,14 @@ body { margin: 0; background: var(--bg); color: var(--ink); font-family: Inter, 
 button, input { font: inherit; }
 button { cursor: pointer; }
 .app { max-width: 1600px; margin: auto; padding: 22px; }
-.hero { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; flex-wrap: wrap; }
+.hero { display: flex; align-items: center; justify-content: space-between; gap: 18px; }
 h1 { margin: 0; color: var(--navy); font-size: clamp(28px, 4vw, 42px); letter-spacing: -.03em; }
-.subtitle { margin: 5px 0 0; color: var(--muted); }
-.toolbar { display: flex; gap: 8px; flex-wrap: wrap; }
+.menu-wrap { position: relative; }
+.menu-toggle { display: grid; place-content: center; gap: 4px; width: 44px; height: 44px; padding: 0; }
+.menu-toggle span { display: block; width: 21px; height: 2px; border-radius: 2px; background: currentColor; }
+.toolbar { position: absolute; top: calc(100% + 8px); right: 0; z-index: 10; display: grid; width: 190px; padding: 8px; gap: 5px; background: #fff; border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 14px 35px rgba(16,42,67,.18); }
+.toolbar[hidden] { display: none; }
+.toolbar button, .toolbar .file-button { width: 100%; text-align: left; }
 button, .file-button { border: 1px solid var(--line); background: #fff; color: var(--ink); padding: 9px 13px; border-radius: 9px; font-weight: 700; }
 button.primary { background: var(--blue); color: #fff; border-color: var(--blue); }
 button.danger { color: var(--bad); }

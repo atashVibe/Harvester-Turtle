@@ -10,17 +10,20 @@
 <body>
 <main class="app">
   <header class="hero">
-    <div>
-      <h1>Harvester Turtle</h1>
-      <p class="subtitle">Portfolio harvesting calculator based on the first worksheet. Data stays in this browser.</p>
-    </div>
-    <div class="toolbar">
-      <button class="primary" id="refreshPrices">↻ Refresh Prices</button>
-      <button id="settings">Price Settings</button>
-      <button id="addStock">+ Add Stock</button>
-      <button id="exportData">Export</button>
-      <label class="file-button">Import<input id="importData" type="file" accept="application/json"></label>
-      <button class="danger" id="resetData">Reset</button>
+    <h1>Harvester Turtle</h1>
+    <div class="menu-wrap">
+      <button class="menu-toggle" id="menuToggle" aria-label="Open menu" aria-controls="appMenu" aria-expanded="false">
+        <span aria-hidden="true"></span>
+        <span aria-hidden="true"></span>
+        <span aria-hidden="true"></span>
+      </button>
+      <div class="toolbar" id="appMenu" hidden>
+        <button id="settings">Price Settings</button>
+        <button id="addStock">+ Add Stock</button>
+        <button id="exportData">Export</button>
+        <label class="file-button">Import<input id="importData" type="file" accept="application/json"></label>
+        <button class="danger" id="resetData">Reset</button>
+      </div>
     </div>
   </header>
 
