@@ -20,7 +20,7 @@
       <h2>Quick start</h2>
       <ol>
         <li>Open the three-line menu and choose <strong>Add Stock</strong>.</li>
-        <li>Replace NEW with the stock symbol, then enter its buy price and the amount invested.</li>
+        <li>Enter the stock symbol when asked, then enter its buy price and the amount invested.</li>
         <li>Check the current price, growth goal, harvest percentage, and minimum cash.</li>
         <li>Read the colored lights, Action, Suggestion, and Harvest Cash results.</li>
       </ol>
@@ -52,15 +52,15 @@
       <h2>What you enter</h2>
       <dl>
         <dt>Stock</dt>
-        <dd>The market symbol, such as AAPL or MRVL.</dd>
+        <dd>The market symbol, such as AAPL or MRVL. You enter it when adding the row, and it is read-only afterward.</dd>
         <dt>Current</dt>
-        <dd>The latest price received from the price service. You can also enter it manually.</dd>
+        <dd>The latest price received from the price service. You can also enter it manually. Money fields always use two decimal places, with the dollar sign shown in the column header.</dd>
         <dt>Buy Price</dt>
         <dd>Your average price paid for one share.</dd>
         <dt>Invested</dt>
         <dd>The total amount of money invested in that stock.</dd>
         <dt>Growth Goal</dt>
-        <dd>The minimum profit target written as a decimal. For example, 0.03 means 3%.</dd>
+        <dd>The minimum profit target entered as a percentage from 0.00 to 100.00. For example, enter 3.00 for a 3% goal.</dd>
         <dt>Harvest %</dt>
         <dd>The part of eligible profit to harvest. For example, 0.20 means 20%.</dd>
         <dt>Min. Cash</dt>
@@ -91,7 +91,7 @@
       <h2>Menu options</h2>
       <dl>
         <dt>Add Stock</dt>
-        <dd>Adds a new editable row.</dd>
+        <dd>Asks for a stock symbol, then adds a new row. The symbol is fixed after the row is created.</dd>
         <dt>Export</dt>
         <dd>Downloads a backup of your portfolio data.</dd>
         <dt>Import</dt>
@@ -104,6 +104,7 @@
     <section class="help-card wide">
       <h2>Saving and safety</h2>
       <p>Your portfolio entries are saved in the current browser on the current device. Export a backup before clearing browser data or moving to another device, then use Import on the new device.</p>
+      <p>The remove button asks for confirmation before deleting a stock row.</p>
       <p>Harvester Turtle is an educational calculator. Its signals are based only on the formulas shown above; they are not personalized financial advice and do not guarantee a profit.</p>
     </section>
   </div>

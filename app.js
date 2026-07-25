@@ -25,7 +25,7 @@ function loadStocks(){
 }
 let stocks=loadStocks();
 const save=()=>localStorage.setItem(storageKey,JSON.stringify(stocks));
-const money=n=>Number.isFinite(n)?n.toLocaleString(undefined,{style:"currency",currency:"USD",minimumFractionDigits:2,maximumFractionDigits:2}):"—";
+const money=n=>Number.isFinite(n)?n.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}):"—";
 const number=(n,digits=6)=>Number.isFinite(n)?n.toLocaleString(undefined,{maximumFractionDigits:digits}):"—";
 const percent=n=>Number.isFinite(n)?`${(n*100).toFixed(2)}%`:"—";
 const escapeHtml=text=>String(text).replace(/[&<>"']/g,char=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[char]));
@@ -58,15 +58,15 @@ function render(){
   calculated.forEach(stock=>{
     ti+=stock.invested;tv+=stock.currentValue;tp+=stock.profit;th+=stock.harvestCash;
     rows.insertAdjacentHTML("beforeend",`<tr>
-      <td><div class="symbol-cell">${input(stock,"symbol",stock.symbol,{className:"symbol",min:""})}${signalLights(stock)}</div></td>
-      <td>${input(stock,"current",stock.current)}</td><td>${input(stock,"buyPrice",stock.buyPrice)}</td>
-      <td>${input(stock,"invested",stock.invested)}</td><td>${number(stock.shares)}</td>
+      <td><div class="symbol-cell"><span class="stock-symbol">${escapeHtml(stock.symbol)}</span>${signalLights(stock)}</div></td>
+      <td>${input(stock,"current",stock.current.toFixed(2))}</td><td>${input(stock,"buyPrice",stock.buyPrice.toFixed(2))}</td>
+      <td>${input(stock,"invested",stock.invested.toFixed(2))}</td><td>${number(stock.shares)}</td>
       <td>${money(stock.currentValue)}</td><td class="${stock.profit>=0?"positive":"negative"}">${money(stock.profit)}</td>
       <td class="${stock.returnRate>=0?"positive":"negative"}">${percent(stock.returnRate)}</td>
-      <td>${input(stock,"growthGoal",stock.growthGoal,{step:"0.01",max:"10"})} (${percent(stock.growthGoal)})</td>
+      <td>${input(stock,"growthGoal",(stock.growthGoal*100).toFixed(2),{step:"0.01",max:"100"})}</td>
       <td>${input(stock,"harvestRate",stock.harvestRate,{step:"0.01",max:"1"})} (${percent(stock.harvestRate)})</td>
-      <td>${input(stock,"minimumHarvest",stock.minimumHarvest)}</td><td>${money(stock.harvestPrice)}</td>
-      <td>${input(stock,"previousClose",stock.previousClose)}</td><td>${percent(stock.dayChange)}</td>
+      <td>${input(stock,"minimumHarvest",stock.minimumHarvest.toFixed(2))}</td><td>${money(stock.harvestPrice)}</td>
+      <td>${input(stock,"previousClose",stock.previousClose.toFixed(2))}</td><td>${percent(stock.dayChange)}</td>
       <td>${pill(stock.action)}</td><td>${stock.harvestCash?money(stock.harvestCash):"—"}</td>
       <td>${pill(stock.suggestion)}</td><td>${pill(stock.buySignal)}</td>
       <td><button class="remove" data-remove="${escapeHtml(stock.id)}" aria-label="Remove ${escapeHtml(stock.symbol)}">×</button></td>
@@ -80,11 +80,21 @@ rows.addEventListener("input",event=>{
   const element=event.target;if(!element.dataset.key)return;
   const stock=stocks.find(item=>item.id===element.dataset.id);if(!stock)return;
   const key=element.dataset.key;
-  stock[key]=key==="symbol"?element.value.toUpperCase():Math.max(0,Number(element.value)||0);save();
+  const entered=Math.max(0,Number(element.value)||0);
+  stock[key]=key==="growthGoal"?Math.min(100,entered)/100:entered;save();
 });
 rows.addEventListener("change",event=>{if(event.target.dataset.key)render()});
-rows.addEventListener("click",event=>{if(event.target.dataset.remove){stocks=stocks.filter(stock=>stock.id!==event.target.dataset.remove);render()}});
-addStock.onclick=()=>{stocks.push(normalizeStock({symbol:"NEW",current:0,buyPrice:0,invested:0,growthGoal:.03,harvestRate:.20,minimumHarvest:1,previousClose:0}));render()};
+rows.addEventListener("click",event=>{
+  const id=event.target.dataset.remove;if(!id)return;
+  const stock=stocks.find(item=>item.id===id);
+  if(confirm(`Remove ${stock?stock.symbol:"this stock"}?`)){stocks=stocks.filter(item=>item.id!==id);render()}
+});
+addStock.onclick=()=>{
+  const entered=prompt("Enter the stock symbol, for example AAPL:");if(entered===null)return;
+  const symbol=entered.trim().toUpperCase();
+  if(!/^[A-Z0-9.-]{1,15}$/.test(symbol))return alert("Enter a valid stock symbol.");
+  stocks.push(normalizeStock({symbol,current:0,buyPrice:0,invested:0,growthGoal:.03,harvestRate:.20,minimumHarvest:1,previousClose:0}));render();
+};
 exportData.onclick=()=>{
   const url=URL.createObjectURL(new Blob([JSON.stringify(stocks,null,2)],{type:"application/json"}));
   const anchor=document.createElement("a");anchor.href=url;anchor.download="harvester-turtle-data.json";anchor.click();setTimeout(()=>URL.revokeObjectURL(url),0);
