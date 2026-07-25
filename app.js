@@ -72,7 +72,6 @@ rows.addEventListener("input",event=>{
 rows.addEventListener("change",event=>{if(event.target.dataset.key)render()});
 rows.addEventListener("click",event=>{if(event.target.dataset.remove){stocks=stocks.filter(stock=>stock.id!==event.target.dataset.remove);render()}});
 addStock.onclick=()=>{stocks.push(normalizeStock({symbol:"NEW",current:0,buyPrice:0,invested:0,growthGoal:.03,harvestRate:.20,minimumHarvest:1,previousClose:0}));render()};
-resetData.onclick=()=>{if(confirm("Reset all portfolio data to the first worksheet values?")){stocks=clone(seed).map(normalizeStock);render()}};
 exportData.onclick=()=>{
   const url=URL.createObjectURL(new Blob([JSON.stringify(stocks,null,2)],{type:"application/json"}));
   const anchor=document.createElement("a");anchor.href=url;anchor.download="harvester-turtle-data.json";anchor.click();setTimeout(()=>URL.revokeObjectURL(url),0);
