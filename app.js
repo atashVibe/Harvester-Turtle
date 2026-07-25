@@ -105,22 +105,31 @@ async function refreshPrices(openSettings=false){
   refreshPricesButton.disabled=true;
   setStatus("Updating market prices…");
   try{
-    const batches=[];for(let index=0;index<symbols.length;index+=8)batches.push(symbols.slice(index,index+8));
-    let updated=0,failed=0;
-    for(let index=0;index<batches.length;index++){
-      if(index>0){
-        setStatus(`Updated ${updated} of ${symbols.length}. Waiting 65 seconds for the free price limit to reset…`);
+    const pending=[...symbols],attempts={},completed=new Set(),permanentFailures=new Set();
+    let round=0;
+    while(pending.length){
+      if(round>0){
+        setStatus(`Updated ${completed.size} of ${symbols.length}. Waiting 65 seconds for the free price limit to reset…`);
         await wait(65000);
-        setStatus(`Updating the remaining ${symbols.length-updated} symbols…`);
       }
-      const batch=batches[index];
+      const batch=pending.splice(0,8);
+      setStatus(`Updating ${batch.length} symbol${batch.length===1?"":"s"}… ${completed.size} of ${symbols.length} complete.`);
       const response=await fetch(`${base}${base.includes("?")?"&":"?"}symbols=${encodeURIComponent(batch.join(","))}`,{cache:"no-store"});
-      const data=await response.json();if(!response.ok||data.error)throw new Error(data.error||`Price service returned ${response.status}`);
-      stocks.forEach(stock=>{const quote=data.quotes&&data.quotes[stock.symbol.toUpperCase()];if(quote&&Number(quote.price)>0){stock.current=Number(quote.price);if(Number(quote.previousClose)>0)stock.previousClose=Number(quote.previousClose);updated++}});
-      failed+=Object.keys(data.errors||{}).length;
+      const data=await response.json();
+      const quotes=data.quotes||{};
+      batch.forEach(symbol=>{
+        const quote=quotes[symbol];
+        if(quote&&Number(quote.price)>0)completed.add(symbol);
+        else{
+          attempts[symbol]=(attempts[symbol]||0)+1;
+          if(attempts[symbol]<3)pending.push(symbol);else permanentFailures.add(symbol);
+        }
+      });
+      stocks.forEach(stock=>{const quote=quotes[stock.symbol.toUpperCase()];if(quote&&Number(quote.price)>0){stock.current=Number(quote.price);if(Number(quote.previousClose)>0)stock.previousClose=Number(quote.previousClose)}});
       render();
+      round++;
     }
-    setStatus(`Updated ${updated} of ${symbols.length} symbols${failed?`; ${failed} failed`:""}.`,updated?"good":"bad");
+    setStatus(`Updated ${completed.size} of ${symbols.length} symbols${permanentFailures.size?`; ${permanentFailures.size} failed after 3 attempts`:""}.`,completed.size?"good":"bad");
   }catch(error){
     setStatus(`Price update stopped: ${error.message}. Prices already received were kept.`,"bad");
   }finally{
