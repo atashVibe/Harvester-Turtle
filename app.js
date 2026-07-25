@@ -88,6 +88,8 @@ importData.onchange=async event=>{
 const settingsModal=document.getElementById("settingsModal"),quoteApiUrl=document.getElementById("quoteApiUrl"),priceStatus=document.getElementById("priceStatus");
 const getApiUrl=()=>localStorage.getItem("harvesterQuoteApi")||"";
 function setStatus(text,state=""){priceStatus.textContent=text;priceStatus.className=`status ${state}`}
+const wait=milliseconds=>new Promise(resolve=>setTimeout(resolve,milliseconds));
+let priceRefreshRunning=false;
 settings.onclick=()=>{quoteApiUrl.value=getApiUrl();settingsModal.classList.add("open")};
 closeSettings.onclick=()=>settingsModal.classList.remove("open");
 saveSettings.onclick=()=>{
@@ -98,13 +100,33 @@ async function refreshPrices(openSettings=false){
   const base=getApiUrl(),symbols=[...new Set(stocks.map(stock=>stock.symbol.trim().toUpperCase()).filter(symbol=>/^[A-Z0-9.-]{1,15}$/.test(symbol)))];
   if(!base){setStatus("Automatic prices are not configured. You can enter prices manually or open Price Settings.","bad");if(openSettings)settingsModal.classList.add("open");return}
   if(!symbols.length)return setStatus("Add a valid stock symbol first.","bad");
+  if(priceRefreshRunning)return setStatus("A price update is already running. Please wait for it to finish.");
+  priceRefreshRunning=true;
+  refreshPricesButton.disabled=true;
   setStatus("Updating market prices…");
   try{
-    const response=await fetch(`${base}${base.includes("?")?"&":"?"}symbols=${encodeURIComponent(symbols.join(","))}`,{cache:"no-store"});
-    const data=await response.json();if(!response.ok||data.error)throw new Error(data.error||`Price service returned ${response.status}`);
-    let updated=0;stocks.forEach(stock=>{const quote=data.quotes&&data.quotes[stock.symbol.toUpperCase()];if(quote&&Number(quote.price)>0){stock.current=Number(quote.price);if(Number(quote.previousClose)>0)stock.previousClose=Number(quote.previousClose);updated++}});
-    render();const failed=Object.keys(data.errors||{}).length;setStatus(`Updated ${updated} of ${symbols.length} symbols${failed?`; ${failed} failed`:""}.`,updated?"good":"bad");
-  }catch(error){setStatus(`Price update failed: ${error.message}`,"bad")}
+    const batches=[];for(let index=0;index<symbols.length;index+=8)batches.push(symbols.slice(index,index+8));
+    let updated=0,failed=0;
+    for(let index=0;index<batches.length;index++){
+      if(index>0){
+        setStatus(`Updated ${updated} of ${symbols.length}. Waiting 65 seconds for the free price limit to reset…`);
+        await wait(65000);
+        setStatus(`Updating the remaining ${symbols.length-updated} symbols…`);
+      }
+      const batch=batches[index];
+      const response=await fetch(`${base}${base.includes("?")?"&":"?"}symbols=${encodeURIComponent(batch.join(","))}`,{cache:"no-store"});
+      const data=await response.json();if(!response.ok||data.error)throw new Error(data.error||`Price service returned ${response.status}`);
+      stocks.forEach(stock=>{const quote=data.quotes&&data.quotes[stock.symbol.toUpperCase()];if(quote&&Number(quote.price)>0){stock.current=Number(quote.price);if(Number(quote.previousClose)>0)stock.previousClose=Number(quote.previousClose);updated++}});
+      failed+=Object.keys(data.errors||{}).length;
+      render();
+    }
+    setStatus(`Updated ${updated} of ${symbols.length} symbols${failed?`; ${failed} failed`:""}.`,updated?"good":"bad");
+  }catch(error){
+    setStatus(`Price update stopped: ${error.message}. Prices already received were kept.`,"bad");
+  }finally{
+    priceRefreshRunning=false;
+    refreshPricesButton.disabled=false;
+  }
 }
 const refreshPricesButton=document.getElementById("refreshPrices");refreshPricesButton.onclick=()=>refreshPrices(true);
 render();refreshPrices(false);setInterval(()=>refreshPrices(false),300000);
