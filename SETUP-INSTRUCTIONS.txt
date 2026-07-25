@@ -1,0 +1,41 @@
+HARVESTER TURTLE — SETUP
+
+PART 1 — GitHub Pages
+1. Open your Harvester-Turtle repository on GitHub.
+2. Replace the current index.html with the index.html from this package.
+3. Commit the change.
+4. Your page remains at:
+   https://atashvibe.github.io/Harvester-Turtle/
+
+PART 2 — Create the secure price service with Cloudflare Workers
+1. Create or sign in to a free Cloudflare account.
+2. Open Workers & Pages.
+3. Click Create, then create a Worker.
+4. Name it something like: harvester-turtle-quotes
+5. Open the Worker's code editor, delete the sample code, and paste cloudflare-worker/worker.js.
+6. Save and deploy.
+7. In the Worker settings, open Variables and Secrets.
+8. Add an encrypted secret named exactly:
+   TWELVE_DATA_API_KEY
+9. Paste your Twelve Data API key as the value and save.
+10. Copy your Worker URL. It will look similar to:
+    https://harvester-turtle-quotes.yourname.workers.dev
+
+PART 3 — Connect the app
+1. Open your Harvester Turtle GitHub Pages website.
+2. Click Price Settings.
+3. Paste the Cloudflare Worker URL.
+4. Click Save & Test.
+5. Click Refresh Prices.
+
+TEST THE WORKER DIRECTLY
+Open this address after replacing YOUR-WORKER-URL:
+YOUR-WORKER-URL?symbols=AAPL,MSFT
+
+You should see JSON containing prices.
+
+NOTES
+- The API key stays hidden inside Cloudflare and is not stored in index.html.
+- The app refreshes every five minutes and saves portfolio inputs in your browser.
+- Market data may be delayed depending on the exchange and your Twelve Data plan.
+- The free Twelve Data plan has request limits. A large portfolio may need a paid plan or slower refreshes.
