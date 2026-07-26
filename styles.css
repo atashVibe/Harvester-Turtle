@@ -19,6 +19,8 @@ button { cursor: pointer; }
 .app { max-width: 1600px; margin: auto; padding: 22px; }
 .hero { display: flex; align-items: center; justify-content: space-between; gap: 18px; }
 h1 { margin: 0; color: var(--navy); font-size: clamp(28px, 4vw, 42px); letter-spacing: -.03em; }
+.app-title { display: flex; align-items: center; gap: 10px; }
+.app-logo { width: 1.15em; height: 1.15em; border-radius: 24%; object-fit: cover; box-shadow: 0 3px 10px rgba(16,42,67,.16); }
 .menu-wrap { position: relative; }
 .menu-toggle { display: grid; place-content: center; gap: 4px; width: 44px; height: 44px; padding: 0; }
 .menu-toggle span { display: block; width: 21px; height: 2px; border-radius: 2px; background: currentColor; }
@@ -69,6 +71,8 @@ td input { width: 88px; border: 1px solid #cbd5e1; border-radius: 7px; padding: 
 .empty { padding: 18px; color: var(--muted); text-align: center; }
 .help-app { max-width: 920px; }
 .help-header { margin-bottom: 18px; }
+.help-brand { display: flex; align-items: center; gap: 8px; margin: 14px 0 6px; color: var(--navy); font-weight: 800; }
+.help-brand img { width: 34px; height: 34px; border-radius: 24%; object-fit: cover; }
 .back-link { color: var(--blue); font-weight: 800; text-decoration: none; }
 .help-intro { margin: 8px 0 0; color: var(--muted); line-height: 1.6; }
 .help-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }

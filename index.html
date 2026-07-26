@@ -4,13 +4,21 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Portfolio harvest calculator with optional live market prices.">
+  <meta name="theme-color" content="#102a43">
+  <meta property="og:title" content="Harvester Turtle">
+  <meta property="og:description" content="Portfolio harvesting calculator with live price updates and harvest signals.">
+  <meta property="og:image" content="https://atashvibe.github.io/Harvester-Turtle/harvester-turtle-icon.png">
+  <meta name="twitter:card" content="summary">
   <title>Harvester Turtle</title>
+  <link rel="icon" type="image/png" href="harvester-turtle-icon.png">
+  <link rel="apple-touch-icon" href="harvester-turtle-icon.png">
+  <link rel="manifest" href="manifest.webmanifest">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 <main class="app">
   <header class="hero">
-    <h1>Harvester Turtle</h1>
+    <h1 class="app-title"><img class="app-logo" src="harvester-turtle-icon.png" alt="">Harvester Turtle</h1>
     <div class="menu-wrap">
       <button class="menu-toggle" id="menuToggle" aria-label="Open menu" aria-controls="appMenu" aria-expanded="false">
         <span aria-hidden="true"></span>
@@ -41,7 +49,7 @@
       <thead>
         <tr>
           <th>Stock</th><th>Current ($)</th><th>Buy Price ($)</th><th>Invested ($)</th><th>Shares</th>
-          <th>Value ($)</th><th>Profit ($)</th><th>Return</th><th>Growth Goal (%)</th><th>Harvest %</th><th>Min. Cash ($)</th>
+          <th>Value ($)</th><th>Profit ($)</th><th>Return</th><th>Growth Goal (%)</th><th>Harvest (%)</th><th>Min. Cash ($)</th>
           <th>Harvest Price ($)</th><th>Previous Close ($)</th><th>Day Change</th><th>Action</th>
           <th>Harvest Cash ($)</th><th>Suggestion</th><th>Buy?</th><th></th>
         </tr>

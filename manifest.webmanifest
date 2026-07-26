@@ -1,0 +1,17 @@
+{
+  "name": "Harvester Turtle",
+  "short_name": "Harvester",
+  "description": "Portfolio harvesting calculator with live price updates and harvest signals.",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f3f6fa",
+  "theme_color": "#102a43",
+  "icons": [
+    {
+      "src": "harvester-turtle-icon.png",
+      "sizes": "1254x1254",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

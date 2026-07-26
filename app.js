@@ -64,7 +64,7 @@ function render(){
       <td>${money(stock.currentValue)}</td><td class="${stock.profit>=0?"positive":"negative"}">${money(stock.profit)}</td>
       <td class="${stock.returnRate>=0?"positive":"negative"}">${percent(stock.returnRate)}</td>
       <td>${input(stock,"growthGoal",(stock.growthGoal*100).toFixed(2),{step:"0.01",max:"100"})}</td>
-      <td>${input(stock,"harvestRate",stock.harvestRate,{step:"0.01",max:"1"})} (${percent(stock.harvestRate)})</td>
+      <td>${input(stock,"harvestRate",(stock.harvestRate*100).toFixed(2),{step:"0.01",max:"100"})}</td>
       <td>${input(stock,"minimumHarvest",stock.minimumHarvest.toFixed(2))}</td><td>${money(stock.harvestPrice)}</td>
       <td>${input(stock,"previousClose",stock.previousClose.toFixed(2))}</td><td>${percent(stock.dayChange)}</td>
       <td>${pill(stock.action)}</td><td>${stock.harvestCash?money(stock.harvestCash):"—"}</td>
@@ -81,7 +81,7 @@ rows.addEventListener("input",event=>{
   const stock=stocks.find(item=>item.id===element.dataset.id);if(!stock)return;
   const key=element.dataset.key;
   const entered=Math.max(0,Number(element.value)||0);
-  stock[key]=key==="growthGoal"?Math.min(100,entered)/100:entered;save();
+  stock[key]=["growthGoal","harvestRate"].includes(key)?Math.min(100,entered)/100:entered;save();
 });
 rows.addEventListener("change",event=>{if(event.target.dataset.key)render()});
 rows.addEventListener("click",event=>{
