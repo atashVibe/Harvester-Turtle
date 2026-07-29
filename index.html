@@ -4,54 +4,44 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Portfolio harvest calculator with optional live market prices.">
-  <meta name="theme-color" content="#102a43">
-  <meta property="og:title" content="Harvester Turtle">
-  <meta property="og:description" content="Portfolio harvesting calculator with live price updates and harvest signals.">
-  <meta property="og:image" content="https://atashvibe.github.io/Harvester-Turtle/harvester-turtle-icon.png">
-  <meta name="twitter:card" content="summary">
   <title>Harvester Turtle</title>
-  <link rel="icon" type="image/png" href="harvester-turtle-icon.png">
-  <link rel="apple-touch-icon" href="harvester-turtle-icon.png">
-  <link rel="manifest" href="manifest.webmanifest">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 <main class="app">
   <header class="hero">
-    <h1 class="app-title"><img class="app-logo" src="harvester-turtle-icon.png" alt="">Harvester Turtle</h1>
-    <div class="menu-wrap">
-      <button class="menu-toggle" id="menuToggle" aria-label="Open menu" aria-controls="appMenu" aria-expanded="false">
-        <span aria-hidden="true"></span>
-        <span aria-hidden="true"></span>
-        <span aria-hidden="true"></span>
-      </button>
-      <div class="toolbar" id="appMenu" hidden>
-        <a class="menu-link" href="help.html">Help</a>
-        <button id="settings">Price Settings</button>
-        <button id="addStock">+ Add Stock</button>
-        <button id="exportData">Export</button>
-        <label class="file-button">Import<input id="importData" type="file" accept="application/json"></label>
-      </div>
+    <div>
+      <h1>Harvester Turtle</h1>
+      <p class="subtitle">Portfolio harvesting calculator based on the first worksheet. Data stays in this browser.</p>
+    </div>
+    <div class="toolbar">
+      <button class="primary" id="refreshPrices">↻ Refresh Prices</button>
+      <button id="settings">Price Settings</button>
+      <button id="addStock">+ Add Stock</button>
+      <button id="exportData">Export</button>
+      <label class="file-button">Import<input id="importData" type="file" accept="application/json"></label>
+      <button class="danger" id="resetData">Reset</button>
     </div>
   </header>
 
   <div id="priceStatus" class="status">Price service is not configured.</div>
 
   <section class="summary" aria-label="Portfolio summary">
-    <div class="metric"><small>Total Invested ($)</small><strong id="totalInvested">0.00</strong></div>
-    <div class="metric"><small>Current Value ($)</small><strong id="totalValue">0.00</strong></div>
-    <div class="metric"><small>Total Profit ($)</small><strong id="totalProfit">0.00</strong></div>
-    <div class="metric"><small>Harvest Available ($)</small><strong id="totalHarvest">0.00</strong></div>
+    <div class="metric"><small>Total Invested</small><strong id="totalInvested">$0.00</strong></div>
+    <div class="metric"><small>Current Value</small><strong id="totalValue">$0.00</strong></div>
+    <div class="metric"><small>Total Profit</small><strong id="totalProfit">$0.00</strong></div>
+    <div class="metric"><small>Harvest Available</small><strong id="totalHarvest">$0.00</strong></div>
+    <div class="metric"><small>Shares to Sell</small><strong id="totalSharesToSell">0</strong></div>
   </section>
 
   <div class="table-wrap">
     <table>
       <thead>
         <tr>
-          <th>Stock</th><th>Current ($)</th><th>Buy Price ($)</th><th>Invested ($)</th><th>Shares</th>
-          <th>Value ($)</th><th>Profit ($)</th><th>Return</th><th>Growth Goal (%)</th><th>Harvest (%)</th><th>Min. Cash ($)</th>
-          <th>Harvest Price ($)</th><th>Previous Close ($)</th><th>Day Change</th><th>Action</th>
-          <th>Harvest Cash ($)</th><th>Suggestion</th><th>Buy?</th><th></th>
+          <th>Stock</th><th>Current</th><th>Buy Price</th><th>Invested</th><th>Shares</th>
+          <th>Value</th><th>Profit</th><th>Return</th><th>Growth Goal</th><th>Harvest %</th><th>Min. Cash</th>
+          <th>Harvest Price</th><th>Previous Close</th><th>Day Change</th><th>Action</th>
+          <th>Harvest Cash</th><th>Shares to Sell</th><th>Suggestion</th><th>Buy?</th><th></th>
         </tr>
       </thead>
       <tbody id="rows"></tbody>
