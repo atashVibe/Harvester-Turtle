@@ -24,7 +24,12 @@ function loadStocks(){
   return clone(seed).map(normalizeStock);
 }
 let stocks=loadStocks();
-const save=()=>localStorage.setItem(storageKey,JSON.stringify(stocks));
+let cloudReady=false;
+let syncTimer=null;
+const save=()=>{
+  localStorage.setItem(storageKey,JSON.stringify(stocks));
+  if(cloudReady)scheduleCloudSave();
+};
 const money=n=>Number.isFinite(n)?n.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}):"—";
 const number=(n,digits=6)=>Number.isFinite(n)?n.toLocaleString(undefined,{maximumFractionDigits:digits}):"—";
 const percent=n=>Number.isFinite(n)?`${(n*100).toFixed(2)}%`:"—";
@@ -107,7 +112,7 @@ importData.onchange=async event=>{
     stocks=clean;render();
   }catch{alert("That file is not valid Harvester Turtle data.")}finally{event.target.value=""}
 };
-const settingsModal=document.getElementById("settingsModal"),quoteApiUrl=document.getElementById("quoteApiUrl"),priceStatus=document.getElementById("priceStatus");
+const settingsModal=document.getElementById("settingsModal"),quoteApiUrl=document.getElementById("quoteApiUrl"),syncKeyInput=document.getElementById("syncKey"),syncStatus=document.getElementById("syncStatus"),priceStatus=document.getElementById("priceStatus");
 const menuToggle=document.getElementById("menuToggle"),appMenu=document.getElementById("appMenu");
 function setMenu(open){
   appMenu.hidden=!open;
@@ -120,17 +125,67 @@ document.addEventListener("click",()=>setMenu(false));
 document.addEventListener("keydown",event=>{if(event.key==="Escape")setMenu(false)});
 const DEFAULT_API_URL="https://summer-river-8271.atash1317.workers.dev";
 const getApiUrl=()=>localStorage.getItem("harvesterQuoteApi")||DEFAULT_API_URL;
+const getSyncKey=()=>localStorage.getItem("harvesterSyncKey")||"";
 function setStatus(text,state=""){priceStatus.textContent=text;priceStatus.className=`status ${state}`}
+function setSyncStatus(text,state=""){
+  syncStatus.textContent=text;
+  syncStatus.className=`note ${state}`;
+}
+function syncHeaders(){return {"Content-Type":"application/json","Authorization":`Bearer ${getSyncKey()}`}}
+async function cloudRequest(method,body){
+  const response=await fetch(`${getApiUrl()}/portfolio`,{method,headers:syncHeaders(),cache:"no-store",body:body?JSON.stringify(body):undefined});
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok)throw new Error(data.error||`Cloud sync failed (HTTP ${response.status})`);
+  return data;
+}
+async function pushPortfolio(){
+  if(!getSyncKey())return;
+  setSyncStatus("Saving portfolio to Cloudflare…");
+  await cloudRequest("PUT",{stocks});
+  setSyncStatus(`Portfolio synced at ${new Date().toLocaleTimeString([],{hour:"numeric",minute:"2-digit"})}.`,"positive");
+}
+function scheduleCloudSave(){
+  clearTimeout(syncTimer);
+  syncTimer=setTimeout(()=>pushPortfolio().catch(error=>setSyncStatus(`Sync pending: ${error.message}`,"negative")),800);
+}
+async function initializeCloudSync(){
+  if(!getSyncKey()){cloudReady=false;setSyncStatus("Cloud sync is not configured on this device.");return}
+  try{
+    setSyncStatus("Loading portfolio from Cloudflare…");
+    const data=await cloudRequest("GET");
+    if(data.portfolio&&Array.isArray(data.portfolio.stocks)){
+      stocks=data.portfolio.stocks.map(normalizeStock).filter(stock=>stock.symbol);
+      localStorage.setItem(storageKey,JSON.stringify(stocks));
+      render();
+      setSyncStatus("Portfolio loaded from Cloudflare.","positive");
+    }else{
+      await pushPortfolio();
+    }
+    cloudReady=true;
+  }catch(error){
+    cloudReady=false;
+    setSyncStatus(`Using this device only: ${error.message}`,"negative");
+  }
+}
 const savedUpdateTime=localStorage.getItem("harvesterLastPriceUpdate");
 if(savedUpdateTime)setStatus(`Updated on: ${savedUpdateTime}`,"good");
 else setStatus("Prices update when this page is refreshed.");
 const wait=milliseconds=>new Promise(resolve=>setTimeout(resolve,milliseconds));
 let priceRefreshRunning=false;
-settings.onclick=()=>{quoteApiUrl.value=getApiUrl();settingsModal.classList.add("open")};
+settings.onclick=()=>{quoteApiUrl.value=getApiUrl();syncKeyInput.value=getSyncKey();settingsModal.classList.add("open")};
+syncNow.onclick=async()=>{
+  if(!getSyncKey()){settings.onclick();return}
+  try{await pushPortfolio()}catch(error){setSyncStatus(`Sync failed: ${error.message}`,"negative");settingsModal.classList.add("open")}
+};
 closeSettings.onclick=()=>settingsModal.classList.remove("open");
-saveSettings.onclick=()=>{
+saveSettings.onclick=async()=>{
   const url=quoteApiUrl.value.trim().replace(/\/$/,"");if(!/^https:\/\//i.test(url))return alert("Enter a secure HTTPS URL.");
-  localStorage.setItem("harvesterQuoteApi",url);settingsModal.classList.remove("open");refreshPrices(true);
+  const key=syncKeyInput.value.trim();if(key.length<16)return alert("Use a private sync key at least 16 characters long.");
+  localStorage.setItem("harvesterQuoteApi",url);
+  localStorage.setItem("harvesterSyncKey",key);
+  cloudReady=false;
+  await initializeCloudSync();
+  if(cloudReady){settingsModal.classList.remove("open");refreshPrices(true)}
 };
 async function refreshPrices(openSettings=false){
   const base=getApiUrl(),symbols=[...new Set(stocks.map(stock=>stock.symbol.trim().toUpperCase()).filter(symbol=>/^[A-Z0-9.-]{1,15}$/.test(symbol)))];
@@ -174,4 +229,4 @@ async function refreshPrices(openSettings=false){
     priceRefreshRunning=false;
   }
 }
-render();refreshPrices(false);
+render();initializeCloudSync().then(()=>refreshPrices(false));

@@ -1,41 +1,51 @@
-HARVESTER TURTLE — SETUP
+HARVESTER TURTLE — GITHUB PAGES + CLOUDFLARE D1 SETUP
 
-PART 1 — GitHub Pages
-1. Open your Harvester-Turtle repository on GitHub.
-2. Replace the current index.html with the index.html from this package.
-3. Commit the change.
-4. Your page remains at:
+PART 1 — CLOUDFLARE DATABASE
+1. Sign in to Cloudflare and open Workers & Pages.
+2. Open D1 SQL Database, click Create database, and name it: harvester-turtle-db
+3. Open the database Console and run the contents of cloudflare-worker/schema.sql.
+
+PART 2 — UPDATE THE WORKER
+1. Open your existing Harvester Turtle Worker.
+2. Open Edit code, replace its code with cloudflare-worker/worker.js, then deploy.
+3. Open Settings > Bindings, add a D1 database binding:
+   Variable name: DB
+   Database: harvester-turtle-db
+4. Open Settings > Variables and Secrets.
+5. Keep or add the encrypted secret TWELVE_DATA_API_KEY with your Twelve Data API key.
+6. Add another encrypted secret named exactly PORTFOLIO_SYNC_KEY.
+7. For its value, make a private phrase at least 16 characters long. Do not share it or put it in GitHub.
+8. Deploy again if Cloudflare asks you to deploy the new settings.
+
+PART 3 — GITHUB PAGES
+1. Commit and push all changed files in this repository using GitHub Desktop.
+2. Wait about two minutes, then open:
    https://atashvibe.github.io/Harvester-Turtle/
 
-PART 2 — Create the secure price service with Cloudflare Workers
-1. Create or sign in to a free Cloudflare account.
-2. Open Workers & Pages.
-3. Click Create, then create a Worker.
-4. Name it something like: harvester-turtle-quotes
-5. Open the Worker's code editor, delete the sample code, and paste cloudflare-worker/worker.js.
-6. Save and deploy.
-7. In the Worker settings, open Variables and Secrets.
-8. Add an encrypted secret named exactly:
-   TWELVE_DATA_API_KEY
-9. Paste your Twelve Data API key as the value and save.
-10. Copy your Worker URL. It will look similar to:
-    https://harvester-turtle-quotes.yourname.workers.dev
+PART 4 — CONNECT EACH DEVICE
+1. Open Harvester Turtle and choose Price Settings.
+2. Enter your Cloudflare Worker URL.
+3. Enter the same private PORTFOLIO_SYNC_KEY value you created in Cloudflare.
+4. Choose Save & Sync.
+5. Repeat on every device that should share this portfolio.
 
-PART 3 — Connect the app
-1. Open your Harvester Turtle GitHub Pages website.
-2. Click Price Settings.
-3. Paste the Cloudflare Worker URL.
-4. Click Save & Test.
-5. Click Refresh Prices.
+HOW SYNC WORKS
+- The first connected device uploads its existing portfolio if the database is empty.
+- Later devices load the saved portfolio from Cloudflare.
+- Changes are saved automatically after a short delay.
+- Sync Now immediately uploads the current device's portfolio.
+- Browser storage remains as an offline fallback.
+- The most recently saved device wins if two devices edit at the same time.
 
-TEST THE WORKER DIRECTLY
-Open this address after replacing YOUR-WORKER-URL:
+TEST PRICES
+Open:
 YOUR-WORKER-URL?symbols=AAPL,MSFT
-
 You should see JSON containing prices.
 
-NOTES
-- The API key stays hidden inside Cloudflare and is not stored in index.html.
-- The app refreshes every five minutes and saves portfolio inputs in your browser.
-- Market data may be delayed depending on the exchange and your Twelve Data plan.
-- The free Twelve Data plan has request limits. A large portfolio may need a paid plan or slower refreshes.
+TEST DATABASE SECURITY
+Opening YOUR-WORKER-URL/portfolio without the private key should show "Invalid private sync key". This is expected and confirms the portfolio endpoint is protected.
+
+IMPORTANT
+- Never put TWELVE_DATA_API_KEY or PORTFOLIO_SYNC_KEY in GitHub files.
+- Anyone who knows PORTFOLIO_SYNC_KEY can read or replace the portfolio, so keep it private.
+- Market data may be delayed and Twelve Data request limits still apply.
