@@ -47,7 +47,13 @@ input[type=file] { display: none; }
 .metric { background: var(--card); border: 1px solid var(--line); border-radius: 13px; padding: 15px; box-shadow: 0 5px 18px rgba(16,42,67,.04); }
 .metric small { display: block; color: var(--muted); font-weight: 700; }
 .metric strong { display: block; margin-top: 5px; font-size: 23px; }
-.table-wrap { overflow: auto; background: #fff; border: 1px solid var(--line); border-radius: 13px; box-shadow: 0 5px 18px rgba(16,42,67,.04); }
+.table-scroll-controls { display: grid; grid-template-columns: auto auto minmax(100px, 1fr) auto; align-items: center; gap: 7px; margin: 0 0 7px; padding: 5px 7px; border: 1px solid var(--line); border-radius: 9px; background: #fff; }
+.table-scroll-controls[hidden] { display: none; }
+.table-scroll-label { color: var(--muted); font-size: 11px; font-weight: 800; white-space: nowrap; }
+.table-scroll-button { display: grid; place-content: center; width: 30px; height: 28px; padding: 0; border-radius: 6px; color: var(--navy); }
+.table-scroll-button:disabled { cursor: default; opacity: .35; }
+.table-scroll-range { width: 100%; margin: 0; accent-color: var(--blue); cursor: ew-resize; }
+.table-wrap { overflow: auto; overscroll-behavior-inline: contain; background: #fff; border: 1px solid var(--line); border-radius: 13px; box-shadow: 0 5px 18px rgba(16,42,67,.04); }
 table { border-collapse: collapse; width: 100%; min-width: 1120px; font-size: 11px; }
 th, td { padding: 4px 2px; border-bottom: 1px solid var(--line); text-align: right; }
 td { white-space: nowrap; }

@@ -51,7 +51,13 @@
     <div class="metric"><small>Harvest Available ($)</small><strong id="totalHarvest">0.00</strong></div>
   </section>
 
-  <div class="table-wrap">
+  <div class="table-scroll-controls" id="tableScrollControls" hidden>
+    <span class="table-scroll-label">Scroll columns</span>
+    <button class="table-scroll-button" id="scrollTableLeft" type="button" aria-label="Scroll table columns left">←</button>
+    <input class="table-scroll-range" id="tableScrollPosition" type="range" min="0" max="0" value="0" step="1" aria-label="Horizontal table position">
+    <button class="table-scroll-button" id="scrollTableRight" type="button" aria-label="Scroll table columns right">→</button>
+  </div>
+  <div class="table-wrap" id="tableWrap" tabindex="0" aria-label="Portfolio table. Use the controls above or hold Shift while using the mouse wheel to scroll columns.">
     <table>
       <thead>
         <tr>

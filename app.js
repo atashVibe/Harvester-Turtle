@@ -14,6 +14,29 @@ const seed = [
 const clone=value=>JSON.parse(JSON.stringify(value));
 const storageKey="harvesterDataV2";
 const rows=document.getElementById("rows");
+const tableWrap=document.getElementById("tableWrap"),tableScrollControls=document.getElementById("tableScrollControls"),tableScrollPosition=document.getElementById("tableScrollPosition"),scrollTableLeft=document.getElementById("scrollTableLeft"),scrollTableRight=document.getElementById("scrollTableRight");
+function updateTableScrollControls(){
+  const maximum=Math.max(0,tableWrap.scrollWidth-tableWrap.clientWidth);
+  tableScrollControls.hidden=maximum<1;
+  tableScrollPosition.max=String(Math.ceil(maximum));
+  tableScrollPosition.value=String(Math.min(maximum,tableWrap.scrollLeft));
+  scrollTableLeft.disabled=tableWrap.scrollLeft<=0;
+  scrollTableRight.disabled=tableWrap.scrollLeft>=maximum-1;
+}
+tableScrollPosition.addEventListener("input",()=>{tableWrap.scrollLeft=Number(tableScrollPosition.value)});
+tableWrap.addEventListener("scroll",updateTableScrollControls,{passive:true});
+tableWrap.addEventListener("wheel",event=>{
+  if(!event.shiftKey||!event.deltaY)return;
+  event.preventDefault();tableWrap.scrollLeft+=event.deltaY;
+},{passive:false});
+scrollTableLeft.onclick=()=>tableWrap.scrollBy({left:-Math.max(240,tableWrap.clientWidth*.7),behavior:"smooth"});
+scrollTableRight.onclick=()=>tableWrap.scrollBy({left:Math.max(240,tableWrap.clientWidth*.7),behavior:"smooth"});
+window.addEventListener("resize",updateTableScrollControls);
+if("ResizeObserver" in window){
+  const tableScrollObserver=new ResizeObserver(updateTableScrollControls);
+  tableScrollObserver.observe(tableWrap);
+  tableScrollObserver.observe(tableWrap.querySelector("table"));
+}
 function loadStocks(){
   try{
     const current=JSON.parse(localStorage.getItem(storageKey));
@@ -108,6 +131,7 @@ function render(saveData=true){
   totalInvested.textContent=money(ti);totalValue.textContent=money(tv);totalProfit.textContent=money(tp);
   totalValue.className=tv>ti?"positive":"negative";
   totalProfit.className=tp>=0?"positive":"negative";totalHarvest.textContent=money(th);if(saveData)save();
+  requestAnimationFrame(updateTableScrollControls);
 }
 const tableHead=document.querySelector("thead");
 tableHead.addEventListener("click",event=>{

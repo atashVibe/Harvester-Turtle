@@ -16,6 +16,8 @@ Harvested Price depends on Bought Price and Growth Goal, not Invested Amount. In
 
 The compact table uses centered two-line headings, 11-pixel heading and value text, minimal column spacing, and bold stock symbols. It begins with Stock, Current Price, Bought Price, Invested Amount, Shares, Harvested Price, Harvest Cash, and Growth Goal, followed by the remaining calculation and signal columns. Current Price, Bought Price, Invested Amount, Harvested Price, and Growth Goal place the descriptive measurement and its unit together on the second line.
 
+When the table is wider than the browser, desktop users can move across it with the visible left/right buttons and horizontal slider above the table. Holding Shift while using the mouse wheel also scrolls horizontally. Touchscreen sideways scrolling remains available.
+
 Rows start sorted alphabetically by stock symbol. Click any data-column heading to sort ascending, then click it again to sort descending. The active heading shows the direction with an arrow. Sorting changes only the displayed row order and does not change the saved portfolio.
 
 Shares display with exactly two decimal places, while calculations retain the full-precision share value.
