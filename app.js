@@ -137,10 +137,13 @@ const tableHead=document.querySelector("thead");
 const mainTable=tableWrap.querySelector("table"),floatingTableHeader=document.getElementById("floatingTableHeader"),floatingTableHeaderScroll=document.getElementById("floatingTableHeaderScroll"),floatingTableHeaderTable=document.getElementById("floatingTableHeaderTable"),floatingTableHead=document.getElementById("floatingTableHead");
 floatingTableHead.innerHTML=tableHead.innerHTML;
 function updateFloatingHeaderPosition(){
-  const wrapBox=tableWrap.getBoundingClientRect(),headerBox=tableHead.getBoundingClientRect();
-  const visible=headerBox.top<0&&wrapBox.bottom>headerBox.height;
+  const wrapBox=tableWrap.getBoundingClientRect(),headerBox=tableHead.getBoundingClientRect(),controlsBox=tableScrollControls.getBoundingClientRect();
+  const controlsVisible=!tableScrollControls.hidden&&getComputedStyle(tableScrollControls).display!=="none";
+  const topOffset=controlsVisible?Math.max(0,controlsBox.bottom):0;
+  const visible=headerBox.top<topOffset&&wrapBox.bottom>topOffset+headerBox.height;
   floatingTableHeader.hidden=!visible;
   if(!visible)return;
+  floatingTableHeader.style.top=`${topOffset}px`;
   floatingTableHeader.style.left=`${wrapBox.left}px`;
   floatingTableHeader.style.width=`${wrapBox.width}px`;
   floatingTableHeaderScroll.scrollLeft=tableWrap.scrollLeft;

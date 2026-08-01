@@ -16,7 +16,7 @@ Harvested Price depends on Bought Price and Growth Goal, not Invested Amount. In
 
 The compact table uses centered two-line headings, 11-pixel heading and value text, minimal column spacing, and bold stock symbols. It begins with Stock, Current Price, Bought Price, Invested Amount, Shares, Harvested Price, Harvest Cash, and Growth Goal, followed by the remaining calculation and signal columns. Current Price, Bought Price, Invested Amount, Harvested Price, and Growth Goal place the descriptive measurement and its unit together on the second line.
 
-When the table is wider than the browser, desktop users can move across it with the visible left/right buttons and horizontal slider above the table. Holding Shift while using the mouse wheel also scrolls horizontally. Touchscreen sideways scrolling remains available.
+When the table is wider than the browser, desktop users can move across it with the visible left/right buttons and horizontal slider. Those controls remain frozen above the floating headings while the table is on screen. Holding Shift while using the mouse wheel also scrolls horizontally. The desktop controls are hidden on phones and other coarse-pointer touchscreens, where sideways swiping remains available.
 
 The page keeps a single vertical scrollbar. As the table headings leave the top of the screen, a synchronized floating heading row remains visible until the end of the table; it follows the table's horizontal position and preserves the frozen Stock heading.
 

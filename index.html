@@ -51,13 +51,14 @@
     <div class="metric"><small>Harvest Available ($)</small><strong id="totalHarvest">0.00</strong></div>
   </section>
 
+  <div class="portfolio-table-section">
   <div class="table-scroll-controls" id="tableScrollControls" hidden>
     <span class="table-scroll-label">Scroll columns</span>
     <button class="table-scroll-button" id="scrollTableLeft" type="button" aria-label="Scroll table columns left">←</button>
     <input class="table-scroll-range" id="tableScrollPosition" type="range" min="0" max="0" value="0" step="1" aria-label="Horizontal table position">
     <button class="table-scroll-button" id="scrollTableRight" type="button" aria-label="Scroll table columns right">→</button>
   </div>
-  <div class="table-wrap" id="tableWrap" tabindex="0" aria-label="Portfolio table. Use the controls above or hold Shift while using the mouse wheel to scroll columns.">
+  <div class="table-wrap" id="tableWrap" tabindex="0" aria-label="Portfolio table. Swipe sideways on a touchscreen, or use the desktop controls to scroll columns.">
     <table>
       <thead>
         <tr>
@@ -69,6 +70,7 @@
       </thead>
       <tbody id="rows"></tbody>
     </table>
+  </div>
   </div>
 
   <p class="formula-note note"><strong>Harvest rule:</strong> Harvested Price is Bought Price increased by the Growth Goal, so it does not depend on Invested Amount. Harvest Cash uses your actual shares and profit, and appears only when the price goal is reached and the result meets your chosen minimum cash amount.</p>
