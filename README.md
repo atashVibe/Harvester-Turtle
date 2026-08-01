@@ -18,7 +18,7 @@ The compact table uses centered two-line headings, 11-pixel heading and value te
 
 When the table is wider than the browser, desktop users can move across it with the visible left/right buttons and horizontal slider above the table. Holding Shift while using the mouse wheel also scrolls horizontally. Touchscreen sideways scrolling remains available.
 
-When the table is taller than the browser, it uses its own vertical scrolling area and keeps the column-heading row frozen at the top.
+The page keeps a single vertical scrollbar. As the table headings leave the top of the screen, a synchronized floating heading row remains visible until the end of the table; it follows the table's horizontal position and preserves the frozen Stock heading.
 
 Rows start sorted alphabetically by stock symbol. Click any data-column heading to sort ascending, then click it again to sort descending. The active heading shows the direction with an arrow. Sorting changes only the displayed row order and does not change the saved portfolio.
 

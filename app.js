@@ -24,16 +24,16 @@ function updateTableScrollControls(){
   scrollTableRight.disabled=tableWrap.scrollLeft>=maximum-1;
 }
 tableScrollPosition.addEventListener("input",()=>{tableWrap.scrollLeft=Number(tableScrollPosition.value)});
-tableWrap.addEventListener("scroll",updateTableScrollControls,{passive:true});
+tableWrap.addEventListener("scroll",()=>{updateTableScrollControls();updateFloatingHeaderPosition()},{passive:true});
 tableWrap.addEventListener("wheel",event=>{
   if(!event.shiftKey||!event.deltaY)return;
   event.preventDefault();tableWrap.scrollLeft+=event.deltaY;
 },{passive:false});
 scrollTableLeft.onclick=()=>tableWrap.scrollBy({left:-Math.max(240,tableWrap.clientWidth*.7),behavior:"smooth"});
 scrollTableRight.onclick=()=>tableWrap.scrollBy({left:Math.max(240,tableWrap.clientWidth*.7),behavior:"smooth"});
-window.addEventListener("resize",updateTableScrollControls);
+window.addEventListener("resize",()=>{updateTableScrollControls();syncFloatingTableHeader()});
 if("ResizeObserver" in window){
-  const tableScrollObserver=new ResizeObserver(updateTableScrollControls);
+  const tableScrollObserver=new ResizeObserver(()=>{updateTableScrollControls();syncFloatingTableHeader()});
   tableScrollObserver.observe(tableWrap);
   tableScrollObserver.observe(tableWrap.querySelector("table"));
 }
@@ -131,13 +131,47 @@ function render(saveData=true){
   totalInvested.textContent=money(ti);totalValue.textContent=money(tv);totalProfit.textContent=money(tp);
   totalValue.className=tv>ti?"positive":"negative";
   totalProfit.className=tp>=0?"positive":"negative";totalHarvest.textContent=money(th);if(saveData)save();
-  requestAnimationFrame(updateTableScrollControls);
+  requestAnimationFrame(()=>{updateTableScrollControls();syncFloatingTableHeader()});
 }
 const tableHead=document.querySelector("thead");
+const mainTable=tableWrap.querySelector("table"),floatingTableHeader=document.getElementById("floatingTableHeader"),floatingTableHeaderScroll=document.getElementById("floatingTableHeaderScroll"),floatingTableHeaderTable=document.getElementById("floatingTableHeaderTable"),floatingTableHead=document.getElementById("floatingTableHead");
+floatingTableHead.innerHTML=tableHead.innerHTML;
+function updateFloatingHeaderPosition(){
+  const wrapBox=tableWrap.getBoundingClientRect(),headerBox=tableHead.getBoundingClientRect();
+  const visible=headerBox.top<0&&wrapBox.bottom>headerBox.height;
+  floatingTableHeader.hidden=!visible;
+  if(!visible)return;
+  floatingTableHeader.style.left=`${wrapBox.left}px`;
+  floatingTableHeader.style.width=`${wrapBox.width}px`;
+  floatingTableHeaderScroll.scrollLeft=tableWrap.scrollLeft;
+}
+function syncFloatingTableHeader(){
+  const originalHeaders=[...tableHead.querySelectorAll("th")],floatingHeaders=[...floatingTableHead.querySelectorAll("th")];
+  const tableWidth=mainTable.getBoundingClientRect().width;
+  floatingTableHeaderTable.style.width=`${tableWidth}px`;
+  floatingTableHeaderTable.style.minWidth=`${tableWidth}px`;
+  originalHeaders.forEach((header,index)=>{
+    const floatingHeader=floatingHeaders[index];if(!floatingHeader)return;
+    const width=header.getBoundingClientRect().width;
+    floatingHeader.style.width=`${width}px`;
+    floatingHeader.style.minWidth=`${width}px`;
+    floatingHeader.style.maxWidth=`${width}px`;
+  });
+  updateFloatingHeaderPosition();
+}
+window.addEventListener("scroll",updateFloatingHeaderPosition,{passive:true});
 tableHead.addEventListener("click",event=>{
   const header=event.target.closest("th[data-sort]");if(header)selectSort(header);
 });
 tableHead.addEventListener("keydown",event=>{
+  if(!["Enter"," "].includes(event.key))return;
+  const header=event.target.closest("th[data-sort]");if(!header)return;
+  event.preventDefault();selectSort(header);
+});
+floatingTableHead.addEventListener("click",event=>{
+  const header=event.target.closest("th[data-sort]");if(header)selectSort(header);
+});
+floatingTableHead.addEventListener("keydown",event=>{
   if(!["Enter"," "].includes(event.key))return;
   const header=event.target.closest("th[data-sort]");if(!header)return;
   event.preventDefault();selectSort(header);
