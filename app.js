@@ -262,6 +262,10 @@ function finishPriceProgress(total,label,countText){
   updatePriceProgress(total,total,label,countText);
   progressHideTimer=setTimeout(()=>{priceProgressWrap.hidden=true},2200);
 }
+function stopPriceProgress(done,total,label,countText){
+  updatePriceProgress(done,total,label,countText);
+  progressHideTimer=setTimeout(()=>{priceProgressWrap.hidden=true},5000);
+}
 function setSyncStatus(text,state=""){
   syncStatus.textContent=text;
   syncStatus.className=`note ${state}`;
@@ -306,9 +310,18 @@ const savedUpdateTime=localStorage.getItem("harvesterLastPriceUpdate");
 if(savedUpdateTime)setStatus(`Updated on: ${savedUpdateTime}`,"good");
 else setStatus("Prices update when this page is refreshed.");
 const wait=milliseconds=>new Promise(resolve=>setTimeout(resolve,milliseconds));
-async function waitForNextPriceGroup(done,total){
-  for(let remaining=65;remaining>0;remaining--){
-    updatePriceProgress(done,total,"Waiting for next price group…",`${done} of ${total} • ${remaining}s`);
+function secondsUntilPriceReset(){
+  return Math.max(2,Math.ceil((60000-(Date.now()%60000))/1000)+2);
+}
+function quoteErrorMessage(data,symbol,response){
+  return String((data.errors&&data.errors[symbol])||data.message||data.error||`HTTP ${response.status}`);
+}
+const isDailyPriceLimit=message=>/daily|per day|for the day|current day|today|midnight/i.test(message);
+const isMinutePriceLimit=message=>/429|minute|rate limit|too many requests|credit limit|api credits/i.test(message);
+async function waitForNextPriceGroup(done,total,priceLimitReached=false){
+  const label=priceLimitReached&&done===0?"Price service limit reached. Retrying…":"Waiting for next price group…";
+  for(let remaining=secondsUntilPriceReset();remaining>0;remaining--){
+    updatePriceProgress(done,total,label,`${done} of ${total} • ${remaining}s`);
     await wait(1000);
   }
 }
@@ -337,44 +350,74 @@ async function refreshPrices(openSettings=false){
   updatePriceProgress(0,symbols.length);
   try{
     const pending=[...symbols],attempts={},completed=new Set(),permanentFailures=new Set();
-    let round=0;
-    while(pending.length){
+    let round=0,priceLimitReached=false,dailyLimitReached=false,limitUnavailable=false;
+    while(pending.length&&!dailyLimitReached&&!limitUnavailable){
       if(round>0){
-        await waitForNextPriceGroup(completed.size+permanentFailures.size,symbols.length);
+        await waitForNextPriceGroup(completed.size+permanentFailures.size,symbols.length,priceLimitReached);
       }
+      priceLimitReached=false;
       const batch=pending.splice(0,8);
+      const retrySymbols=[];
       updatePriceProgress(completed.size+permanentFailures.size,symbols.length);
       await Promise.all(batch.map(async symbol=>{
-        let quote;
+        let quote,errorMessage="";
         try{
           const response=await fetch(`${base}${base.includes("?")?"&":"?"}symbols=${encodeURIComponent(symbol)}`,{cache:"no-store"});
           const data=await response.json();
           if(response.ok)quote=(data.quotes||{})[symbol];
-        }catch{}
+          if(!quote)errorMessage=quoteErrorMessage(data,symbol,response);
+        }catch(error){errorMessage=error.message||"Price request failed"}
         if(quote&&Number(quote.price)>0){
           completed.add(symbol);
           stocks.forEach(stock=>{if(stock.symbol.toUpperCase()===symbol){stock.current=Number(quote.price);if(Number(quote.previousClose)>0)stock.previousClose=Number(quote.previousClose)}});
           render();
-        }else{
+        }else if(isDailyPriceLimit(errorMessage)){
+          dailyLimitReached=true;
+          permanentFailures.add(symbol);
+        }else if(isMinutePriceLimit(errorMessage)){
+          priceLimitReached=true;
           attempts[symbol]=(attempts[symbol]||0)+1;
-          if(attempts[symbol]<3)pending.push(symbol);else permanentFailures.add(symbol);
+          if(attempts[symbol]<2)retrySymbols.push(symbol);
+          else{permanentFailures.add(symbol);limitUnavailable=true}
+        }else{
+          permanentFailures.add(symbol);
         }
         updatePriceProgress(completed.size+permanentFailures.size,symbols.length);
       }));
+      if(retrySymbols.length)pending.unshift(...retrySymbols);
+      if(dailyLimitReached||limitUnavailable)pending.length=0;
       round++;
     }
-    if(completed.size){
+    if(dailyLimitReached){
+      if(completed.size){
+        const updatedTime=new Date().toLocaleTimeString([],{hour:"numeric",minute:"2-digit"});
+        localStorage.setItem("harvesterLastPriceUpdate",updatedTime);
+        setStatus(`Updated on: ${updatedTime}`,"good");
+      }else{
+        setStatus("Daily price limit reached. Existing prices were kept. Try again after the daily reset.","bad");
+      }
+      stopPriceProgress(completed.size+permanentFailures.size,symbols.length,"Daily price limit reached",`${completed.size} updated`);
+    }else if(limitUnavailable){
+      if(completed.size){
+        const updatedTime=new Date().toLocaleTimeString([],{hour:"numeric",minute:"2-digit"});
+        localStorage.setItem("harvesterLastPriceUpdate",updatedTime);
+        setStatus(`Updated on: ${updatedTime}`,"good");
+      }else{
+        setStatus("The price-service limit is still unavailable. Existing prices were kept. Try again later.","bad");
+      }
+      stopPriceProgress(completed.size+permanentFailures.size,symbols.length,"Price service unavailable",`${completed.size} updated`);
+    }else if(completed.size){
       const updatedTime=new Date().toLocaleTimeString([],{hour:"numeric",minute:"2-digit"});
       localStorage.setItem("harvesterLastPriceUpdate",updatedTime);
       setStatus(`Updated on: ${updatedTime}`,"good");
       finishPriceProgress(symbols.length,"Refresh complete",`${completed.size} updated`);
     }else{
       setStatus("Price update failed. Prices already received were kept.","bad");
-      finishPriceProgress(symbols.length,"Refresh finished","0 updated");
+      stopPriceProgress(permanentFailures.size,symbols.length,"Refresh stopped","0 updated");
     }
   }catch(error){
     setStatus(`Price update stopped: ${error.message}. Prices already received were kept.`,"bad");
-    finishPriceProgress(symbols.length,"Refresh stopped","Please try again");
+    stopPriceProgress(0,symbols.length,"Refresh stopped","Please try again");
   }finally{
     priceRefreshRunning=false;
   }

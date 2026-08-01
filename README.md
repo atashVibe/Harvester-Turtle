@@ -36,7 +36,7 @@ Open `index.html` in a modern browser. No build step is required.
 
 Deploy `cloudflare-worker/worker.js` as a Cloudflare Worker and add an encrypted secret named `TWELVE_DATA_API_KEY`. Then enter the Worker URL under **Price Settings**.
 
-Prices update once when the page opens. Refresh the page to request new prices; there is no repeating timer. Up to eight symbols are requested concurrently. The progress bar advances as each individual response arrives and displays a countdown between free-plan groups. With 20 symbols, the eight-credit-per-minute free plan requires three groups and at least about two minutes.
+Prices update once when the page opens. Refresh the page to request new prices; there is no repeating timer. Up to eight symbols are requested concurrently. The progress bar advances as each individual response arrives and counts down to the price allowance's next clock-minute reset between groups. It detects minute limits separately from the free plan's daily limit, retries the same rejected group once after the reset, then stops with a clear message if the limit remains unavailable. Prices already received are kept.
 
 ## GitHub Pages
 
