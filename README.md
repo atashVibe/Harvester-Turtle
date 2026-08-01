@@ -18,6 +18,8 @@ The compact table uses centered two-line headings, 11-pixel heading and value te
 
 When the table is wider than the browser, desktop users can move across it with the visible left/right buttons and horizontal slider. Those controls remain frozen above the floating headings while the table is on screen. Holding Shift while using the mouse wheel also scrolls horizontally. The desktop controls are hidden on phones and other coarse-pointer touchscreens, where sideways swiping remains available.
 
+The table controls and floating headings use a lower display layer than the application menu and Settings window, preventing them from covering dialogs or menu actions.
+
 The page keeps a single vertical scrollbar. As the table headings leave the top of the screen, a synchronized floating heading row remains visible until the end of the table; it follows the table's horizontal position and preserves the frozen Stock heading.
 
 Editable table fields support left-to-right keyboard navigation. Tab moves forward, Shift+Tab moves backward, and mobile numeric keyboards display a Next action that saves the current value and focuses the next editable field.
