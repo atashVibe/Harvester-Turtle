@@ -15,7 +15,7 @@ For each stock:
 - `harvest cash = current profit × harvest percentage`, but only when current profit reaches required profit
 This reconciles the workbook's Growth Goal with its original minimum-harvest formula. Both conditions must be met before the app shows a harvest.
 
-The table begins with Stock, Current Price, Buy Price, Invested, Shares, Harvest Price, Harvest Cash, and Growth Goal, followed by the remaining calculation and signal columns.
+The compact table uses two-line headings and begins with Stock, Current Price, Buy Price, Invested, Shares, Harvest Price, Harvest Cash, and Growth Goal, followed by the remaining calculation and signal columns.
 
 ## Run
 
