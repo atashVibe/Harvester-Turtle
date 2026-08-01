@@ -14,7 +14,7 @@ For each stock:
 
 Harvested Price depends on Bought Price and Growth Goal, not Invested Amount. Invested Amount still determines Shares, Profit, and the actual Harvest Cash. Both the price goal and minimum-cash condition must be met before the app shows a harvest.
 
-The compact table uses centered two-line headings, 11-pixel heading and value text, minimal column spacing, and bold stock symbols. It begins with Stock, Current Price, Bought Price, Invested Amount, Shares, Harvested Price, Harvest Cash, and Growth Goal, followed by the remaining calculation and signal columns. Current Price, Bought Price, Invested Amount, Harvested Price, and Growth Goal place the descriptive measurement and its unit together on the second line.
+The compact table uses centered two-line headings, 11-pixel heading and value text, minimal column spacing, and bold stock symbols with a small gap after the signal lights. It begins with Stock, Current Price, Bought Price, Invested Amount, Shares, Harvest Price, Harvest Cash, and Growth Goal, followed by the remaining calculation and signal columns. Every sortable heading places its arrow on a separate line for consistent alignment. Harvest Price, Harvest Cash, and Previous Close also use consistent two-line labels.
 
 When the table is wider than the browser, desktop users can move across it with the visible left/right buttons and horizontal slider. Those controls remain frozen above the floating headings while the table is on screen. Holding Shift while using the mouse wheel also scrolls horizontally. The desktop controls are hidden on phones and other coarse-pointer touchscreens, where sideways swiping remains available.
 

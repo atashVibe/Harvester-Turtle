@@ -1,0 +1,382 @@
+I need you to continue helping me develop my Harvester Turtle web app.
+
+IMPORTANT Read all of this before making changes.
+
+## About me and how to communicate
+
+I am a junior-high-school student and relatively new to GitHub, programming, Cloudflare, and web development.
+
+Please
+
+- Use clear, normal language.
+- Do not assume I know technical terms.
+- Do not talk to me like I am stupid.
+- Give reasonably sized steps—not tiny instructions one click at a time unless I ask.
+- Lead with what you found or changed.
+- Explain why something is happening when it matters.
+- Do not overwhelm me with unnecessary technical details.
+- If my request is clear, proceed without repeatedly asking for confirmation.
+- When I provide screenshots, inspect them carefully.
+- Be honest when a problem comes from an external service rather than the app.
+
+## Most important safety rule
+
+Before changing anything
+
+1. Inspect the current local Git repository.
+2. Run `git status`.
+3. Compare it with the latest local and pushed commit.
+4. Preserve everything already added.
+5. Never replace the project with an older copy.
+6. Never remove or reset features unless I explicitly request it.
+7. Do not make unrelated “cleanup” changes.
+8. Tell me which files will change.
+9. After finishing, verify that only the expected files changed.
+
+My recent instruction was “When you add or change something, make sure you do not remove something random.”
+
+## Project locations
+
+Current local Git repository
+
+`CUsersalitaOneDriveDocumentsCodexGitHubHarvester-Turtle`
+
+GitHub repository
+
+`httpsgithub.comatashVibeHarvester-Turtle`
+
+GitHub Pages website
+
+`httpsatashvibe.github.ioHarvester-Turtle`
+
+Original Excel workbook
+
+`CHarvester-TurtleHarvester Trutle.xlsx`
+
+A copy is also stored inside the repository.
+
+IMPORTANT Ignore the workbook’s second worksheet. Only the first worksheet is relevant.
+
+Cloudflare Worker currently used by the app
+
+`httpssummer-river-8271.atash1317.workers.dev`
+
+## Current Git state
+
+At the beginning of this new conversation, the repository was clean and synchronized
+
+`main...originmain`
+
+Latest commit
+
+`50f9c81 Keep table controls behind menu and settings`
+
+Recent commits
+
+- `50f9c81 Keep table controls behind menu and settings`
+- `6cc47fc Fix price update status and limit handling`
+- `d4e42b8 Freeze desktop scroll controls and hide on mobile`
+- `9bff216 Add left-to-right field navigation`
+- `17a738d Replace nested scroll with floating headers`
+- `4dc4bbb Keep table headers visible while scrolling`
+
+Check again before working because I may have changed or pushed something after writing this prompt.
+
+## Project structure
+
+This is a static HTMLCSSJavaScript app. It has no build step.
+
+Important files include
+
+- `index.html`
+- `app.js`
+- `calculator.js`
+- `calculator.test.js`
+- `styles.css`
+- `help.html`
+- `README.md`
+- `FORMULA-REVIEW.md`
+- `SETUP-INSTRUCTIONS.txt`
+- `manifest.webmanifest`
+- `harvester-turtle-icon.png`
+- `cloudflare-workerworker.js`
+- `cloudflare-workerschema.sql`
+
+Do not change the Cloudflare Worker or database unless the requested feature genuinely requires it.
+
+## Required workflow for every change
+
+1. Check the current repository and latest commit.
+2. Start from the exact current version.
+3. Make only the requested change.
+4. Always update `help.html` after every app change.
+5. Update `README.md` when the change affects documented behavior.
+6. Update `FORMULA-REVIEW.md` when formulas change.
+7. Run
+   - `node --check app.js`
+   - `node --check calculator.js`
+   - `node --test calculator.test.js`
+8. Add or update tests when formulas change.
+9. Compare the finished copy against the current repository.
+10. Confirm exactly which files changed.
+11. Preserve all unrelated files, including the Worker and database files.
+12. Give me a small update ZIP containing only the files I must replace.
+13. Tell me exactly which files are inside it.
+14. Give me a short GitHub Desktop commit message.
+
+If direct editing of the Git folder is unavailable, create the update package under
+
+`CUsersalitaDocumentsCodex2026-07-25ioutputs`
+
+I normally extract the ZIP, copy the included files into my Git folder, choose Replace, then commit and push using GitHub Desktop.
+
+## Current formula rules
+
+These formulas were intentionally changed and must not be reverted.
+
+```text
+Shares = Invested Amount ÷ Bought Price
+
+Current Value = Shares × Current Price
+
+Profit = Current Value − Invested Amount
+
+Harvested Price = Bought Price × (1 + Growth Goal)
+
+Potential Harvest Cash = Profit × Harvest Percentage
+```
+
+Harvested Price must depend only on
+
+- Bought Price
+- Growth Goal
+
+It must not depend on Invested Amount or Minimum Cash.
+
+Harvest Cash uses the user’s real position and Invested Amount.
+
+Show Harvest Cash and set Action to Harvest only when
+
+```text
+Current Price ≥ Harvested Price
+and
+Potential Harvest Cash ≥ the user-entered Minimum Cash
+```
+
+Minimum Cash is entered by the user. It is a threshold for actual Harvest Cash based on the user’s Invested Amount.
+
+Do not restore the older formula that used Invested Amount to calculate Harvested Price.
+
+## Current table behavior
+
+The main column order begins with
+
+1. Stock, with three signal lights
+2. Current Price
+3. Bought Price
+4. Invested Amount
+5. Shares
+6. Harvested Price
+7. Harvest Cash
+8. Growth Goal
+9. Remaining calculation and signal columns
+
+Important table behavior
+
+- Stock symbols are read-only.
+- Stock symbols remain bold.
+- Signal lights appear immediately to the left of the stock symbol.
+- Red means Strong Buy.
+- Yellow means Buy More.
+- Green means Harvest.
+- Shares display exactly two decimal places.
+- Calculations still use full-precision shares internally.
+- Dollar values display exactly two decimal places.
+- Dollar signs appear in headers, not beside every value.
+- Growth Goal and Harvest Percentage accept values from `0.00` through `100.00`.
+- Removing a stock requires confirmation.
+- Do not add a dangerous Reset button.
+- Current Value is green when higher than Total Invested; otherwise it is red.
+
+The important two-line headings currently include
+
+```text
+Current
+Price ($)
+
+Bought
+Price ($)
+
+Invested
+Amount ($)
+
+Harvested
+Price ($)
+
+Growth
+Goal (%)
+```
+
+## Sorting
+
+Every data-column heading is clickable.
+
+- Default order is Stock A–Z.
+- First click sorts ascending.
+- Second click sorts descending.
+- An arrow shows the direction.
+- Sorting changes only the displayed order.
+- Sorting must not reorder or resave the underlying portfolio data.
+- Sorting also supports keyboard EnterSpace.
+
+## Entry-field navigation
+
+Desktop
+
+- Tab moves to the next editable field on the right.
+- Shift+Tab moves backward.
+- After the final editable field in a row, navigation continues to the next stock row.
+
+Phone
+
+- Numeric inputs use the phone keyboard’s NextEnter action.
+- Pressing Next saves the value.
+- It moves to the next editable field on the right.
+- The next value is selected and ready to replace.
+
+Preserve this behavior.
+
+## Scrolling and frozen elements
+
+The app must have only one vertical page scrollbar. Do not restore a nested vertical scrollbar inside the table.
+
+Current behavior
+
+- The Stock column stays frozen on the left.
+- A floating copy of the column headings appears after the original headings leave the top of the screen.
+- The floating headings remain synchronized with horizontal table movement.
+- The floating headings disappear at the end of the table.
+- Desktop has a Scroll columns bar with arrows and a slider.
+- The desktop Scroll columns bar stays frozen above the floating headings while the table is visible.
+- Shift+mouse-wheel also moves horizontally.
+- Phones and coarse-pointer touchscreens hide the Scroll columns bar.
+- Phones scroll sideways by swiping.
+
+Layer order must remain
+
+1. Settings window
+2. Hamburger menu
+3. Scroll columns bar
+4. Floating table headings
+
+The Scroll columns bar must never cover the hamburger menu or Settings window.
+
+## Menu
+
+The hamburger menu includes
+
+- Help
+- Price Settings
+- Sync Now
+- Add Stock
+- Export
+- Import
+
+There is no Reset option.
+
+## Saving and synchronization
+
+Portfolio data is stored through a protected Cloudflare Worker and Cloudflare D1 when configured.
+
+Browser storage remains an offline fallback.
+
+The app uses
+
+- A Cloudflare Worker URL
+- A private portfolio sync key
+- An encrypted Twelve Data API key stored in Cloudflare
+
+Do not expose API keys or private sync keys in public files.
+
+The same private sync key can load the portfolio on another device.
+
+## Price updates
+
+The app does not use a repeating two-minute timer.
+
+Prices update once when the page opens. The user refreshesreloads the page to request another update.
+
+The Twelve Data free plan currently allows
+
+- 8 API credits per minute
+- 800 API credits per day
+
+All phones and browsers use the same Twelve Data API key, so they share one allowance.
+
+With approximately 20 stocks, one full refresh costs about 20 credits.
+
+Current updater behavior
+
+- Requests up to eight symbols per group.
+- Progress advances as individual responses arrive.
+- Waits only until the start of the next clock minute—not a fixed 65 seconds.
+- If the minute allowance was already used, it says
+  `Price service limit reached. Retrying…`
+- It retries the same rejected group once.
+- If the service remains unavailable, it stops instead of cycling through all stocks at `0 of 20`.
+- It detects a daily-limit message separately.
+- Existing prices are always preserved.
+- Successful top status remains
+  `Updated on [time]`
+- The status should not say “Updated 8 of 10” at the top.
+
+The daily free allowance resets at midnight UTC, approximately 500 PM Pacific during daylight-saving time.
+
+Do not change this updater unless I ask about it. If modifying it, preserve the progress behavior and error explanations.
+
+## Mobile and layout preferences
+
+I want to see as much data as possible without unnecessary blank space.
+
+- Summary cards use two columns on phones.
+- Table spacing is compact.
+- Header and value text sizes match.
+- Stock names remain bold.
+- Avoid overly wide columns.
+- Avoid nested scrolling areas.
+- Do not add unnecessary buttons, descriptions, or large blank spaces.
+
+## Branding
+
+Use the Harvester Turtle image already stored in the repository as
+
+- App icon
+- Browser icon
+- Apple touch icon
+- App branding beside the name
+- Social preview image where applicable
+
+Do not add Apple login. I previously asked for it and then said never mind.
+
+## GitHub Pages caching
+
+Phones may keep an older cached copy longer than desktop browsers.
+
+If a deployed update does not appear, a temporary cache-busting address can be used, such as
+
+`httpsatashvibe.github.ioHarvester-Turtlerefresh=2`
+
+Do not mistake phone caching for missing source changes.
+
+## Final response after each implementation
+
+Keep it concise and include
+
+- What changed
+- Confirmation that unrelated features were preserved
+- A clickable link to the update ZIP
+- The exact files to replace
+- A suggested GitHub Desktop commit message
+- Whether the tests passed
+
+Now inspect the repository and wait for my next requested change.
