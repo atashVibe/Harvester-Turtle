@@ -11,24 +11,28 @@ Scope: `Harvester Trutle.xlsx`, first worksheet only.
 - Harvest cash = profit × harvest percentage
 - Buy signal = current price below previous close, otherwise current price below buy price
 
-## Corrected harvest threshold
+## Updated harvest rules
 
-The worksheet displayed a Growth Goal but did not reference it in the Action or Harvest Price formulas.
+Harvested Price is now a per-share target based only on Bought Price and Growth Goal:
 
-The app now requires both worksheet inputs:
+`harvested price = bought price × (1 + growth goal)`
 
-1. Profit must meet the growth goal: `profit ≥ invested × growth goal`.
-2. The harvested share of profit must meet the minimum: `profit × harvest percentage ≥ minimum harvest cash`.
+Invested Amount does not affect this price target. The same Bought Price and Growth Goal always produce the same Harvested Price.
 
-These combine into:
+Harvest Cash still uses the user's real position:
 
-`required profit = max(invested × growth goal, minimum harvest cash / harvest percentage)`
+`shares = invested amount / bought price`
 
-Then:
+`profit = (current price − bought price) × shares`
 
-`harvest price = (invested + required profit) / shares`
+`potential harvest cash = profit × harvest percentage`
 
-This preserves the worksheet's existing harvest-price results whenever its minimum-cash rule is the binding constraint. For example, MRVL remains `$256.9625`.
+A harvest is available only when:
+
+1. `current price ≥ harvested price`
+2. `potential harvest cash ≥ user-entered minimum cash`
+
+This keeps Minimum Cash connected to the actual Invested Amount while removing Invested Amount from the Harvested Price calculation.
 
 ## Safety behavior
 

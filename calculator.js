@@ -31,17 +31,18 @@
     const currentValue = shares * item.current;
     const profit = currentValue - invested;
     const returnRate = invested > 0 ? profit / invested : 0;
-    const goalProfit = invested * item.growthGoal;
-    const minimumProfit = item.harvestRate > 0 ? item.minimumHarvest / item.harvestRate : Infinity;
-    const requiredProfit = Math.max(goalProfit, minimumProfit);
-    const harvestPrice = shares > 0 && Number.isFinite(requiredProfit)
-      ? (invested + requiredProfit) / shares
+    const goalPriceIncrease = averageCost * item.growthGoal;
+    const harvestPrice = averageCost > 0 ? averageCost + goalPriceIncrease : 0;
+    const potentialHarvestCash = profit > 0 && item.harvestRate > 0
+      ? profit * item.harvestRate
       : 0;
     const dayChange = item.previousClose > 0
       ? (item.current - item.previousClose) / item.previousClose
       : 0;
-    const eligible = profit >= requiredProfit && item.harvestRate > 0;
-    const harvestCash = eligible ? profit * item.harvestRate : 0;
+    const meetsGrowthGoal = shares > 0 && item.current >= harvestPrice;
+    const meetsMinimumCash = potentialHarvestCash >= item.minimumHarvest;
+    const eligible = meetsGrowthGoal && meetsMinimumCash && item.harvestRate > 0;
+    const harvestCash = eligible ? potentialHarvestCash : 0;
 
     let suggestion = "Hold";
     if (dayChange <= -0.04) suggestion = "Strong Buy";
@@ -62,9 +63,10 @@
       currentValue,
       profit,
       returnRate,
-      goalProfit,
-      minimumProfit,
-      requiredProfit,
+      goalPriceIncrease,
+      potentialHarvestCash,
+      meetsGrowthGoal,
+      meetsMinimumCash,
       harvestPrice,
       dayChange,
       eligible,

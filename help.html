@@ -84,12 +84,14 @@
 
     <section class="help-card wide">
       <h2>How the harvest calculation works</h2>
-      <p class="help-formula"><strong>Shares</strong> = Invested ÷ Buy Price<br>
+      <p class="help-formula"><strong>Shares</strong> = Invested Amount ÷ Bought Price<br>
       <strong>Current Value</strong> = Shares × Current Price<br>
-      <strong>Profit</strong> = Current Value − Invested</p>
+      <strong>Profit</strong> = Current Value − Invested Amount<br>
+      <strong>Harvested Price</strong> = Bought Price × (1 + Growth Goal)<br>
+      <strong>Potential Harvest Cash</strong> = Profit × Harvest %</p>
       <p>The Shares column displays exactly two decimal places for readability. Calculations still use the complete share value behind the scenes.</p>
-      <p>The app calculates two profit requirements: the profit needed to meet your Growth Goal and the profit needed for your Harvest % to produce at least Min. Cash. It uses the larger requirement.</p>
-      <p>Action changes to <strong>Harvest</strong> only after the current profit reaches that larger requirement. Harvest Cash is then the current profit multiplied by the Harvest %.</p>
+      <p>Harvested Price depends only on Bought Price and Growth Goal. Changing Invested Amount does not change the Harvested Price target.</p>
+      <p>Invested Amount determines how many shares you own, so it affects your actual Profit and Potential Harvest Cash. Action changes to <strong>Harvest</strong> only when Current Price reaches the Harvested Price and Potential Harvest Cash reaches the user-entered Min. Cash. Until both conditions are met, Harvest Cash is not shown.</p>
     </section>
 
     <section class="help-card">

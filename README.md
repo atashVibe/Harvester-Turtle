@@ -8,12 +8,11 @@ For each stock:
 
 - `shares = amount invested / buy price`
 - `profit = current value - total invested`
-- `goal profit = total invested × growth goal`
-- `minimum-profit requirement = minimum harvest cash / harvest percentage`
-- `required profit = max(goal profit, minimum-profit requirement)`
-- `harvest price = (total invested + required profit) / total shares`
-- `harvest cash = current profit × harvest percentage`, but only when current profit reaches required profit
-This reconciles the workbook's Growth Goal with its original minimum-harvest formula. Both conditions must be met before the app shows a harvest.
+- `harvested price = bought price × (1 + growth goal)`
+- `potential harvest cash = current profit × harvest percentage`
+- `harvest cash = potential harvest cash` only when current price reaches harvested price and potential harvest cash reaches the user-entered minimum cash
+
+Harvested Price depends on Bought Price and Growth Goal, not Invested Amount. Invested Amount still determines Shares, Profit, and the actual Harvest Cash. Both the price goal and minimum-cash condition must be met before the app shows a harvest.
 
 The compact table uses centered two-line headings, 11-pixel heading and value text, minimal column spacing, and bold stock symbols. It begins with Stock, Current Price, Bought Price, Invested Amount, Shares, Harvested Price, Harvest Cash, and Growth Goal, followed by the remaining calculation and signal columns. Current Price, Bought Price, Invested Amount, Harvested Price, and Growth Goal place the descriptive measurement and its unit together on the second line.
 
