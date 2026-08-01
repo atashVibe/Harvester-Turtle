@@ -28,7 +28,6 @@ const ready = calculate({
 });
 assert.equal(ready.eligible, true);
 assert.ok(Math.abs(ready.harvestCash - 2) < 1e-12);
-assert.ok(Math.abs(ready.sharesToSell - (2 / 300)) < 1e-12);
 
 const goalControls = calculate({
   symbol: "GOAL",

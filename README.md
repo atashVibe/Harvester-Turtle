@@ -13,8 +13,6 @@ For each stock:
 - `required profit = max(goal profit, minimum-profit requirement)`
 - `harvest price = (total invested + required profit) / total shares`
 - `harvest cash = current profit × harvest percentage`, but only when current profit reaches required profit
-- `shares to sell = harvest cash / current price`
-
 This reconciles the workbook's Growth Goal with its original minimum-harvest formula. Both conditions must be met before the app shows a harvest.
 
 ## Run
@@ -24,6 +22,8 @@ Open `index.html` in a modern browser. No build step is required.
 ## Live prices
 
 Deploy `cloudflare-worker/worker.js` as a Cloudflare Worker and add an encrypted secret named `TWELVE_DATA_API_KEY`. Then enter the Worker URL under **Price Settings**.
+
+Prices update once when the page opens. Refresh the page to request new prices; there is no repeating timer. A progress bar shows how many symbols have completed, including while large portfolios pause between free-plan batches.
 
 ## GitHub Pages
 

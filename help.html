@@ -91,6 +91,7 @@
     <section class="help-card">
       <h2>Updating prices</h2>
       <p>Prices update once when the page opens. To update them again, refresh or reload the page. There is no automatic timer running in the background.</p>
+      <p>A progress bar appears immediately and shows how many stock symbols have finished. If you have more than eight symbols, the bar stays visible while the free price service pauses between groups.</p>
       <p>After a successful update, the message at the top shows <strong>Updated on:</strong> followed by the time.</p>
       <p>The free price plan processes large portfolios in groups. Market prices may be delayed or differ from a brokerage app because data sources and trading sessions can be different.</p>
       <p>Use <strong>Price Settings</strong> only if the Cloudflare Worker address needs to be changed.</p>
@@ -106,13 +107,16 @@
         <dt>Import</dt>
         <dd>Restores portfolio data from a Harvester Turtle export file.</dd>
         <dt>Price Settings</dt>
-        <dd>Changes the price-service address used when the page is refreshed.</dd>
+        <dd>Changes the Cloudflare Worker address and the private portfolio sync key used on this device.</dd>
+        <dt>Sync Now</dt>
+        <dd>Saves the current portfolio to your protected Cloudflare database immediately.</dd>
       </dl>
     </section>
 
     <section class="help-card wide">
       <h2>Saving and safety</h2>
-      <p>Your portfolio entries are saved in the current browser on the current device. Export a backup before clearing browser data or moving to another device, then use Import on the new device.</p>
+      <p>When cloud sync is configured, your portfolio is stored through the protected Cloudflare Worker and can load on another device using the same private sync key. Browser storage remains available as an offline backup.</p>
+      <p>Keep the private sync key secret. Export a backup before clearing browser data or making major portfolio changes.</p>
       <p>The remove button asks for confirmation before deleting a stock row.</p>
       <p>Harvester Turtle is an educational calculator. Its signals are based only on the formulas shown above; they are not personalized financial advice and do not guarantee a profit.</p>
     </section>

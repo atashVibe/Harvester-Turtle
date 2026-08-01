@@ -31,9 +31,18 @@ button, .file-button, .menu-link { border: 1px solid var(--line); background: #f
 .menu-link { display: inline-block; text-decoration: none; }
 button.primary { background: var(--blue); color: #fff; border-color: var(--blue); }
 input[type=file] { display: none; }
-.status { margin: 15px 0; padding: 10px 13px; border-radius: 9px; background: #eaf0f8; color: #475467; }
+.price-update { margin: 15px 0; }
+.status { margin: 0; padding: 10px 13px; border-radius: 9px; background: #eaf0f8; color: #475467; }
 .status.good { background: #dcfae6; color: var(--good); }
 .status.bad { background: #fee4e2; color: var(--bad); }
+.progress-wrap { margin-top: 8px; padding: 11px 13px; border: 1px solid var(--line); border-radius: 9px; background: #fff; }
+.progress-wrap[hidden] { display: none; }
+.progress-label { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 7px; color: #475467; font-size: 13px; }
+.progress-label strong { color: var(--navy); white-space: nowrap; }
+.progress-wrap progress { display: block; width: 100%; height: 12px; overflow: hidden; border: 0; border-radius: 999px; background: #dce3ec; accent-color: var(--blue); }
+.progress-wrap progress::-webkit-progress-bar { background: #dce3ec; border-radius: 999px; }
+.progress-wrap progress::-webkit-progress-value { background: var(--blue); border-radius: 999px; transition: width .25s ease; }
+.progress-wrap progress::-moz-progress-bar { background: var(--blue); border-radius: 999px; }
 .summary { display: grid; grid-template-columns: repeat(5, minmax(155px, 1fr)); gap: 10px; margin-bottom: 16px; }
 .metric { background: var(--card); border: 1px solid var(--line); border-radius: 13px; padding: 15px; box-shadow: 0 5px 18px rgba(16,42,67,.04); }
 .metric small { display: block; color: var(--muted); font-weight: 700; }

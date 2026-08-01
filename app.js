@@ -113,6 +113,7 @@ importData.onchange=async event=>{
   }catch{alert("That file is not valid Harvester Turtle data.")}finally{event.target.value=""}
 };
 const settingsModal=document.getElementById("settingsModal"),quoteApiUrl=document.getElementById("quoteApiUrl"),syncKeyInput=document.getElementById("syncKey"),syncStatus=document.getElementById("syncStatus"),priceStatus=document.getElementById("priceStatus");
+const priceProgressWrap=document.getElementById("priceProgressWrap"),priceProgress=document.getElementById("priceProgress"),priceProgressText=document.getElementById("priceProgressText"),priceProgressCount=document.getElementById("priceProgressCount");
 const menuToggle=document.getElementById("menuToggle"),appMenu=document.getElementById("appMenu");
 function setMenu(open){
   appMenu.hidden=!open;
@@ -127,6 +128,19 @@ const DEFAULT_API_URL="https://summer-river-8271.atash1317.workers.dev";
 const getApiUrl=()=>localStorage.getItem("harvesterQuoteApi")||DEFAULT_API_URL;
 const getSyncKey=()=>localStorage.getItem("harvesterSyncKey")||"";
 function setStatus(text,state=""){priceStatus.textContent=text;priceStatus.className=`status ${state}`}
+let progressHideTimer;
+function updatePriceProgress(done,total,label="Refreshing prices…",countText=`${done} of ${total}`){
+  clearTimeout(progressHideTimer);
+  priceProgressWrap.hidden=false;
+  priceProgress.max=Math.max(total,1);
+  priceProgress.value=Math.min(done,total);
+  priceProgressText.textContent=label;
+  priceProgressCount.textContent=countText;
+}
+function finishPriceProgress(total,label,countText){
+  updatePriceProgress(total,total,label,countText);
+  progressHideTimer=setTimeout(()=>{priceProgressWrap.hidden=true},2200);
+}
 function setSyncStatus(text,state=""){
   syncStatus.textContent=text;
   syncStatus.className=`note ${state}`;
@@ -193,6 +207,7 @@ async function refreshPrices(openSettings=false){
   if(!symbols.length)return setStatus("Add a valid stock symbol first.","bad");
   if(priceRefreshRunning){if(openSettings)setStatus("A price update is already running. Please wait for it to finish.");return}
   priceRefreshRunning=true;
+  updatePriceProgress(0,symbols.length);
   try{
     const pending=[...symbols],attempts={},completed=new Set(),permanentFailures=new Set();
     let round=0;
@@ -214,17 +229,21 @@ async function refreshPrices(openSettings=false){
       });
       stocks.forEach(stock=>{const quote=quotes[stock.symbol.toUpperCase()];if(quote&&Number(quote.price)>0){stock.current=Number(quote.price);if(Number(quote.previousClose)>0)stock.previousClose=Number(quote.previousClose)}});
       render();
+      updatePriceProgress(completed.size+permanentFailures.size,symbols.length);
       round++;
     }
     if(completed.size){
       const updatedTime=new Date().toLocaleTimeString([],{hour:"numeric",minute:"2-digit"});
       localStorage.setItem("harvesterLastPriceUpdate",updatedTime);
       setStatus(`Updated on: ${updatedTime}`,"good");
+      finishPriceProgress(symbols.length,"Refresh complete",`${completed.size} updated`);
     }else{
       setStatus("Price update failed. Prices already received were kept.","bad");
+      finishPriceProgress(symbols.length,"Refresh finished","0 updated");
     }
   }catch(error){
     setStatus(`Price update stopped: ${error.message}. Prices already received were kept.`,"bad");
+    finishPriceProgress(symbols.length,"Refresh stopped","Please try again");
   }finally{
     priceRefreshRunning=false;
   }

@@ -36,7 +36,13 @@
     </div>
   </header>
 
-  <div id="priceStatus" class="status">Price service is not configured.</div>
+  <section class="price-update" aria-label="Price update status">
+    <div id="priceStatus" class="status">Price service is not configured.</div>
+    <div id="priceProgressWrap" class="progress-wrap" aria-live="polite" hidden>
+      <div class="progress-label"><span id="priceProgressText">Refreshing prices…</span><strong id="priceProgressCount">0 of 0</strong></div>
+      <progress id="priceProgress" value="0" max="1">0%</progress>
+    </div>
+  </section>
 
   <section class="summary" aria-label="Portfolio summary">
     <div class="metric"><small>Total Invested ($)</small><strong id="totalInvested">0.00</strong></div>
