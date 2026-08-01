@@ -23,7 +23,7 @@ Open `index.html` in a modern browser. No build step is required.
 
 Deploy `cloudflare-worker/worker.js` as a Cloudflare Worker and add an encrypted secret named `TWELVE_DATA_API_KEY`. Then enter the Worker URL under **Price Settings**.
 
-Prices update once when the page opens. Refresh the page to request new prices; there is no repeating timer. A progress bar shows how many symbols have completed, including while large portfolios pause between free-plan batches.
+Prices update once when the page opens. Refresh the page to request new prices; there is no repeating timer. Up to eight symbols are requested concurrently. The progress bar advances as each individual response arrives and displays a countdown between free-plan groups. With 20 symbols, the eight-credit-per-minute free plan requires three groups and at least about two minutes.
 
 ## GitHub Pages
 

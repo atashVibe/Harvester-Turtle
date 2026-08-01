@@ -91,7 +91,8 @@
     <section class="help-card">
       <h2>Updating prices</h2>
       <p>Prices update once when the page opens. To update them again, refresh or reload the page. There is no automatic timer running in the background.</p>
-      <p>A progress bar appears immediately and shows how many stock symbols have finished. If you have more than eight symbols, the bar stays visible while the free price service pauses between groups.</p>
+      <p>A progress bar appears immediately and advances each time an individual stock price arrives. The app requests up to eight symbols together, which is the fastest rate allowed by the free price plan.</p>
+      <p>If you have more than eight symbols, the bar shows a countdown while it waits for the next allowed group. For example, 20 symbols require three groups and take at least about two minutes on the free plan. A higher Twelve Data plan would be required for a much faster full refresh.</p>
       <p>After a successful update, the message at the top shows <strong>Updated on:</strong> followed by the time.</p>
       <p>The free price plan processes large portfolios in groups. Market prices may be delayed or differ from a brokerage app because data sources and trading sessions can be different.</p>
       <p>Use <strong>Price Settings</strong> only if the Cloudflare Worker address needs to be changed.</p>

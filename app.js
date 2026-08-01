@@ -185,6 +185,12 @@ const savedUpdateTime=localStorage.getItem("harvesterLastPriceUpdate");
 if(savedUpdateTime)setStatus(`Updated on: ${savedUpdateTime}`,"good");
 else setStatus("Prices update when this page is refreshed.");
 const wait=milliseconds=>new Promise(resolve=>setTimeout(resolve,milliseconds));
+async function waitForNextPriceGroup(done,total){
+  for(let remaining=65;remaining>0;remaining--){
+    updatePriceProgress(done,total,"Waiting for next price group…",`${done} of ${total} • ${remaining}s`);
+    await wait(1000);
+  }
+}
 let priceRefreshRunning=false;
 settings.onclick=()=>{quoteApiUrl.value=getApiUrl();syncKeyInput.value=getSyncKey();settingsModal.classList.add("open")};
 syncNow.onclick=async()=>{
@@ -213,23 +219,27 @@ async function refreshPrices(openSettings=false){
     let round=0;
     while(pending.length){
       if(round>0){
-        await wait(65000);
+        await waitForNextPriceGroup(completed.size+permanentFailures.size,symbols.length);
       }
       const batch=pending.splice(0,8);
-      const response=await fetch(`${base}${base.includes("?")?"&":"?"}symbols=${encodeURIComponent(batch.join(","))}`,{cache:"no-store"});
-      const data=await response.json();
-      const quotes=data.quotes||{};
-      batch.forEach(symbol=>{
-        const quote=quotes[symbol];
-        if(quote&&Number(quote.price)>0)completed.add(symbol);
-        else{
+      updatePriceProgress(completed.size+permanentFailures.size,symbols.length);
+      await Promise.all(batch.map(async symbol=>{
+        let quote;
+        try{
+          const response=await fetch(`${base}${base.includes("?")?"&":"?"}symbols=${encodeURIComponent(symbol)}`,{cache:"no-store"});
+          const data=await response.json();
+          if(response.ok)quote=(data.quotes||{})[symbol];
+        }catch{}
+        if(quote&&Number(quote.price)>0){
+          completed.add(symbol);
+          stocks.forEach(stock=>{if(stock.symbol.toUpperCase()===symbol){stock.current=Number(quote.price);if(Number(quote.previousClose)>0)stock.previousClose=Number(quote.previousClose)}});
+          render();
+        }else{
           attempts[symbol]=(attempts[symbol]||0)+1;
           if(attempts[symbol]<3)pending.push(symbol);else permanentFailures.add(symbol);
         }
-      });
-      stocks.forEach(stock=>{const quote=quotes[stock.symbol.toUpperCase()];if(quote&&Number(quote.price)>0){stock.current=Number(quote.price);if(Number(quote.previousClose)>0)stock.previousClose=Number(quote.previousClose)}});
-      render();
-      updatePriceProgress(completed.size+permanentFailures.size,symbols.length);
+        updatePriceProgress(completed.size+permanentFailures.size,symbols.length);
+      }));
       round++;
     }
     if(completed.size){
