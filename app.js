@@ -31,7 +31,7 @@ const save=()=>{
   if(cloudReady)scheduleCloudSave();
 };
 const money=n=>Number.isFinite(n)?n.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}):"—";
-const number=(n,digits=6)=>Number.isFinite(n)?n.toLocaleString(undefined,{maximumFractionDigits:digits}):"—";
+const number=(n,digits=2)=>Number.isFinite(n)?n.toLocaleString(undefined,{minimumFractionDigits:digits,maximumFractionDigits:digits}):"—";
 const percent=n=>Number.isFinite(n)?`${(n*100).toFixed(2)}%`:"—";
 const escapeHtml=text=>String(text).replace(/[&<>"']/g,char=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[char]));
 function pill(text){
@@ -65,7 +65,7 @@ function render(){
     rows.insertAdjacentHTML("beforeend",`<tr>
       <td><div class="symbol-cell"><span class="stock-symbol">${escapeHtml(stock.symbol)}</span>${signalLights(stock)}</div></td>
       <td>${input(stock,"current",stock.current.toFixed(2))}</td><td>${input(stock,"buyPrice",stock.buyPrice.toFixed(2))}</td>
-      <td>${input(stock,"invested",stock.invested.toFixed(2))}</td><td>${number(stock.shares)}</td>
+      <td>${input(stock,"invested",stock.invested.toFixed(2))}</td><td>${number(stock.shares,2)}</td>
       <td>${money(stock.harvestPrice)}</td><td>${stock.harvestCash?money(stock.harvestCash):"—"}</td>
       <td>${input(stock,"growthGoal",(stock.growthGoal*100).toFixed(2),{step:"0.01",max:"100"})}</td>
       <td>${money(stock.currentValue)}</td><td class="${stock.profit>=0?"positive":"negative"}">${money(stock.profit)}</td>
