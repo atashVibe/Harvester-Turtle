@@ -53,7 +53,7 @@ input[type=file] { display: none; }
 .table-scroll-button { display: grid; place-content: center; width: 30px; height: 28px; padding: 0; border-radius: 6px; color: var(--navy); }
 .table-scroll-button:disabled { cursor: default; opacity: .35; }
 .table-scroll-range { width: 100%; margin: 0; accent-color: var(--blue); cursor: ew-resize; }
-.table-wrap { overflow: auto; overscroll-behavior-inline: contain; background: #fff; border: 1px solid var(--line); border-radius: 13px; box-shadow: 0 5px 18px rgba(16,42,67,.04); }
+.table-wrap { max-height: 72vh; overflow: auto; overscroll-behavior-inline: contain; scrollbar-gutter: stable; background: #fff; border: 1px solid var(--line); border-radius: 13px; box-shadow: 0 5px 18px rgba(16,42,67,.04); }
 table { border-collapse: collapse; width: 100%; min-width: 1120px; font-size: 11px; }
 th, td { padding: 4px 2px; border-bottom: 1px solid var(--line); text-align: right; }
 td { white-space: nowrap; }
