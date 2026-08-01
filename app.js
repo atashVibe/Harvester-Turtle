@@ -66,14 +66,14 @@ function render(){
       <td><div class="symbol-cell"><span class="stock-symbol">${escapeHtml(stock.symbol)}</span>${signalLights(stock)}</div></td>
       <td>${input(stock,"current",stock.current.toFixed(2))}</td><td>${input(stock,"buyPrice",stock.buyPrice.toFixed(2))}</td>
       <td>${input(stock,"invested",stock.invested.toFixed(2))}</td><td>${number(stock.shares)}</td>
+      <td>${money(stock.harvestPrice)}</td><td>${stock.harvestCash?money(stock.harvestCash):"—"}</td>
+      <td>${input(stock,"growthGoal",(stock.growthGoal*100).toFixed(2),{step:"0.01",max:"100"})}</td>
       <td>${money(stock.currentValue)}</td><td class="${stock.profit>=0?"positive":"negative"}">${money(stock.profit)}</td>
       <td class="${stock.returnRate>=0?"positive":"negative"}">${percent(stock.returnRate)}</td>
-      <td>${input(stock,"growthGoal",(stock.growthGoal*100).toFixed(2),{step:"0.01",max:"100"})}</td>
       <td>${input(stock,"harvestRate",(stock.harvestRate*100).toFixed(2),{step:"0.01",max:"100"})}</td>
-      <td>${input(stock,"minimumHarvest",stock.minimumHarvest.toFixed(2))}</td><td>${money(stock.harvestPrice)}</td>
+      <td>${input(stock,"minimumHarvest",stock.minimumHarvest.toFixed(2))}</td>
       <td>${input(stock,"previousClose",stock.previousClose.toFixed(2))}</td><td>${percent(stock.dayChange)}</td>
-      <td>${pill(stock.action)}</td><td>${stock.harvestCash?money(stock.harvestCash):"—"}</td>
-      <td>${pill(stock.suggestion)}</td><td>${pill(stock.buySignal)}</td>
+      <td>${pill(stock.action)}</td><td>${pill(stock.suggestion)}</td><td>${pill(stock.buySignal)}</td>
       <td><button class="remove" data-remove="${escapeHtml(stock.id)}" aria-label="Remove ${escapeHtml(stock.symbol)}">×</button></td>
     </tr>`);
   });
