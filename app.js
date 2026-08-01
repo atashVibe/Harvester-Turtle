@@ -26,6 +26,8 @@ function loadStocks(){
 let stocks=loadStocks();
 let cloudReady=false;
 let syncTimer=null;
+let sortKey="symbol";
+let sortDirection="asc";
 const save=()=>{
   localStorage.setItem(storageKey,JSON.stringify(stocks));
   if(cloudReady)scheduleCloudSave();
@@ -56,8 +58,34 @@ function signalLights(stock){
 function input(stock,key,value,{step="0.01",className="",min="0",max=""}={}){
   return `<input class="${className}" data-id="${escapeHtml(stock.id)}" data-key="${key}" type="${key==="symbol"?"text":"number"}" step="${step}" min="${min}" ${max?`max="${max}"`:""} value="${escapeHtml(value)}">`;
 }
-function render(){
-  const calculated=stocks.map(calculate);
+function compareStocks(leftStock,rightStock){
+  const left=leftStock[sortKey],right=rightStock[sortKey];
+  let result;
+  if(typeof left==="string"||typeof right==="string"){
+    result=String(left??"").localeCompare(String(right??""),undefined,{numeric:true,sensitivity:"base"});
+  }else{
+    const leftNumber=Number(left),rightNumber=Number(right);
+    result=(Number.isFinite(leftNumber)?leftNumber:0)-(Number.isFinite(rightNumber)?rightNumber:0);
+  }
+  if(result===0&&sortKey!=="symbol")result=leftStock.symbol.localeCompare(rightStock.symbol,undefined,{numeric:true,sensitivity:"base"});
+  return sortDirection==="asc"?result:-result;
+}
+function updateSortHeaders(){
+  document.querySelectorAll("th[data-sort]").forEach(header=>{
+    const active=header.dataset.sort===sortKey;
+    header.classList.toggle("sort-asc",active&&sortDirection==="asc");
+    header.classList.toggle("sort-desc",active&&sortDirection==="desc");
+    header.setAttribute("aria-sort",active?(sortDirection==="asc"?"ascending":"descending"):"none");
+  });
+}
+function selectSort(header){
+  const key=header.dataset.sort;if(!key)return;
+  if(sortKey===key)sortDirection=sortDirection==="asc"?"desc":"asc";
+  else{sortKey=key;sortDirection="asc"}
+  updateSortHeaders();render(false);
+}
+function render(saveData=true){
+  const calculated=stocks.map(calculate).sort(compareStocks);
   rows.innerHTML=calculated.length?"":'<tr><td class="empty" colspan="19">Add a stock to begin.</td></tr>';
   let ti=0,tv=0,tp=0,th=0;
   calculated.forEach(stock=>{
@@ -79,8 +107,17 @@ function render(){
   });
   totalInvested.textContent=money(ti);totalValue.textContent=money(tv);totalProfit.textContent=money(tp);
   totalValue.className=tv>ti?"positive":"negative";
-  totalProfit.className=tp>=0?"positive":"negative";totalHarvest.textContent=money(th);save();
+  totalProfit.className=tp>=0?"positive":"negative";totalHarvest.textContent=money(th);if(saveData)save();
 }
+const tableHead=document.querySelector("thead");
+tableHead.addEventListener("click",event=>{
+  const header=event.target.closest("th[data-sort]");if(header)selectSort(header);
+});
+tableHead.addEventListener("keydown",event=>{
+  if(!["Enter"," "].includes(event.key))return;
+  const header=event.target.closest("th[data-sort]");if(!header)return;
+  event.preventDefault();selectSort(header);
+});
 rows.addEventListener("input",event=>{
   const element=event.target;if(!element.dataset.key)return;
   const stock=stocks.find(item=>item.id===element.dataset.id);if(!stock)return;
@@ -258,4 +295,4 @@ async function refreshPrices(openSettings=false){
     priceRefreshRunning=false;
   }
 }
-render();initializeCloudSync().then(()=>refreshPrices(false));
+updateSortHeaders();render();initializeCloudSync().then(()=>refreshPrices(false));

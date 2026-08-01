@@ -52,6 +52,12 @@ table { border-collapse: collapse; width: 100%; min-width: 1120px; font-size: 11
 th, td { padding: 4px 2px; border-bottom: 1px solid var(--line); text-align: right; }
 td { white-space: nowrap; }
 th { position: sticky; top: 0; z-index: 2; background: var(--navy); color: #fff; font-size: 11px; line-height: 1.15; text-align: center; white-space: normal; }
+th[data-sort] { cursor: pointer; user-select: none; }
+th[data-sort]::after { content: " ↕"; opacity: .45; }
+th[data-sort].sort-asc::after { content: " ↑"; opacity: 1; }
+th[data-sort].sort-desc::after { content: " ↓"; opacity: 1; }
+th[data-sort]:hover { background: #173b5c; }
+th[data-sort]:focus-visible { outline: 2px solid #fff; outline-offset: -3px; }
 th:first-child, td:first-child { position: sticky; left: 0; z-index: 1; background: #fff; }
 th:first-child { background: var(--navy); text-align: center; z-index: 3; }
 td:first-child { text-align: left; }

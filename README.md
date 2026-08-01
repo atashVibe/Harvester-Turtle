@@ -17,6 +17,8 @@ This reconciles the workbook's Growth Goal with its original minimum-harvest for
 
 The compact table uses centered two-line headings, 11-pixel heading and value text, minimal column spacing, and bold stock symbols. It begins with Stock, Current Price, Buy Price, Invested, Shares, Harvest Price, Harvest Cash, and Growth Goal, followed by the remaining calculation and signal columns.
 
+Rows start sorted alphabetically by stock symbol. Click any data-column heading to sort ascending, then click it again to sort descending. The active heading shows the direction with an arrow. Sorting changes only the displayed row order and does not change the saved portfolio.
+
 Shares display with exactly two decimal places, while calculations retain the full-precision share value.
 
 The three recommendation lights are positioned immediately to the left of each bold stock symbol.
