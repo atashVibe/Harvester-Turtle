@@ -79,7 +79,7 @@ function signalLights(stock){
   </span>`;
 }
 function input(stock,key,value,{step="0.01",className="",min="0",max=""}={}){
-  return `<input class="${className}" data-id="${escapeHtml(stock.id)}" data-key="${key}" type="${key==="symbol"?"text":"number"}" step="${step}" min="${min}" ${max?`max="${max}"`:""} value="${escapeHtml(value)}">`;
+  return `<input class="${className}" data-id="${escapeHtml(stock.id)}" data-key="${key}" type="${key==="symbol"?"text":"number"}" inputmode="decimal" enterkeyhint="next" step="${step}" min="${min}" ${max?`max="${max}"`:""} value="${escapeHtml(value)}">`;
 }
 function compareStocks(leftStock,rightStock){
   const left=leftStock[sortKey],right=rightStock[sortKey];
@@ -182,6 +182,29 @@ rows.addEventListener("input",event=>{
   const key=element.dataset.key;
   const entered=Math.max(0,Number(element.value)||0);
   stock[key]=["growthGoal","harvestRate"].includes(key)?Math.min(100,entered)/100:entered;save();
+});
+function adjacentFieldReference(element,direction){
+  const fields=[...rows.querySelectorAll("input[data-key]")],index=fields.indexOf(element),next=fields[index+direction];
+  return next?{id:next.dataset.id,key:next.dataset.key}:null;
+}
+function focusField(reference){
+  if(!reference)return;
+  const field=[...rows.querySelectorAll("input[data-key]")].find(element=>element.dataset.id===reference.id&&element.dataset.key===reference.key);
+  if(!field)return;
+  field.focus({preventScroll:true});
+  field.select();
+  field.scrollIntoView({block:"nearest",inline:"nearest"});
+}
+rows.addEventListener("keydown",event=>{
+  const element=event.target;if(!element.dataset.key)return;
+  const isTab=event.key==="Tab",isPhoneNext=event.key==="Enter";
+  if(!isTab&&!isPhoneNext)return;
+  const direction=isTab&&event.shiftKey?-1:1;
+  const next=adjacentFieldReference(element,direction);
+  if(!next){if(isPhoneNext){event.preventDefault();element.blur()}return}
+  event.preventDefault();
+  render();
+  requestAnimationFrame(()=>focusField(next));
 });
 rows.addEventListener("change",event=>{if(event.target.dataset.key)render()});
 rows.addEventListener("click",event=>{
