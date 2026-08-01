@@ -15,7 +15,7 @@ For each stock:
 - `harvest cash = current profit × harvest percentage`, but only when current profit reaches required profit
 This reconciles the workbook's Growth Goal with its original minimum-harvest formula. Both conditions must be met before the app shows a harvest.
 
-The compact table uses centered two-line headings, 11-pixel heading and value text, minimal column spacing, and bold stock symbols. It begins with Stock, Current Price, Buy Price, Invested, Shares, Harvest Price, Harvest Cash, and Growth Goal, followed by the remaining calculation and signal columns.
+The compact table uses centered two-line headings, 11-pixel heading and value text, minimal column spacing, and bold stock symbols. It begins with Stock, Current Price, Bought Price, Invested Amount, Shares, Harvested Price, Harvest Cash, and Growth Goal, followed by the remaining calculation and signal columns. Current Price, Bought Price, Invested Amount, Harvested Price, and Growth Goal place the descriptive measurement and its unit together on the second line.
 
 Rows start sorted alphabetically by stock symbol. Click any data-column heading to sort ascending, then click it again to sort descending. The active heading shows the direction with an arrow. Sorting changes only the displayed row order and does not change the saved portfolio.
 
