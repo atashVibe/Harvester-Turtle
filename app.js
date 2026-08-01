@@ -63,7 +63,7 @@ function render(){
   calculated.forEach(stock=>{
     ti+=stock.invested;tv+=stock.currentValue;tp+=stock.profit;th+=stock.harvestCash;
     rows.insertAdjacentHTML("beforeend",`<tr>
-      <td><div class="symbol-cell"><span class="stock-symbol">${escapeHtml(stock.symbol)}</span>${signalLights(stock)}</div></td>
+      <td><div class="symbol-cell">${signalLights(stock)}<span class="stock-symbol">${escapeHtml(stock.symbol)}</span></div></td>
       <td>${input(stock,"current",stock.current.toFixed(2))}</td><td>${input(stock,"buyPrice",stock.buyPrice.toFixed(2))}</td>
       <td>${input(stock,"invested",stock.invested.toFixed(2))}</td><td>${number(stock.shares,2)}</td>
       <td>${money(stock.harvestPrice)}</td><td>${stock.harvestCash?money(stock.harvestCash):"—"}</td>

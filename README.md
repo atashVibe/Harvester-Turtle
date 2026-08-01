@@ -19,6 +19,8 @@ The compact table uses centered two-line headings, 11-pixel heading and value te
 
 Shares display with exactly two decimal places, while calculations retain the full-precision share value.
 
+The three recommendation lights are positioned immediately to the left of each bold stock symbol.
+
 ## Run
 
 Open `index.html` in a modern browser. No build step is required.
