@@ -23,6 +23,12 @@ function validStock(stock) {
   return stock && typeof stock === "object" && /^[A-Z0-9.\-]{1,15}$/.test(String(stock.symbol || "").trim().toUpperCase()) &&
     ["current", "buyPrice", "invested", "previousClose", "growthGoal", "harvestRate", "minimumHarvest"].every(key => Number.isFinite(Number(stock[key])) && Number(stock[key]) >= 0);
 }
+function validTrade(trade) {
+  return trade && typeof trade === "object" && ["buy", "sell"].includes(trade.type) &&
+    /^[A-Z0-9.\-]{1,15}$/.test(String(trade.symbol || "").trim().toUpperCase()) &&
+    ["amount", "shares", "pricePerShare"].every(key => Number.isFinite(Number(trade[key])) && Number(trade[key]) > 0) &&
+    Number.isFinite(new Date(trade.tradedAt).getTime());
+}
 async function portfolio(request, env) {
   if (!env.PORTFOLIO_SYNC_KEY) return json({ error: "Missing PORTFOLIO_SYNC_KEY secret" }, 500);
   if (!env.DB) return json({ error: "Missing D1 database binding named DB" }, 500);
@@ -31,14 +37,23 @@ async function portfolio(request, env) {
   if (request.method === "GET") {
     const row = await env.DB.prepare("SELECT data, updated_at FROM portfolio WHERE id = 1").first();
     if (!row) return json({ portfolio: null });
-    try { return json({ portfolio: { stocks: JSON.parse(row.data), updatedAt: row.updated_at } }); }
+    try {
+      const saved = JSON.parse(row.data);
+      const stocks = Array.isArray(saved) ? saved : saved.stocks;
+      const trades = Array.isArray(saved) ? [] : saved.trades;
+      if (!Array.isArray(stocks) || !Array.isArray(trades)) throw new Error("Invalid saved data");
+      return json({ portfolio: { stocks, trades, updatedAt: row.updated_at } });
+    }
     catch { return json({ error: "Stored portfolio data is invalid" }, 500); }
   }
   if (request.method === "PUT") {
     let body;
     try { body = await request.json(); } catch { return json({ error: "Request body must be JSON" }, 400); }
     if (!Array.isArray(body.stocks) || body.stocks.length > 250 || !body.stocks.every(validStock)) return json({ error: "Portfolio data is invalid" }, 400);
-    const data = JSON.stringify(body.stocks);
+    if (body.trades !== undefined && !Array.isArray(body.trades)) return json({ error: "Trade log data is invalid" }, 400);
+    const trades = Array.isArray(body.trades) ? body.trades : [];
+    if (trades.length > 2000 || !trades.every(validTrade)) return json({ error: "Trade log data is invalid" }, 400);
+    const data = JSON.stringify({ stocks: body.stocks, trades });
     if (data.length > 500000) return json({ error: "Portfolio is too large" }, 413);
     const updatedAt = new Date().toISOString();
     await env.DB.prepare("INSERT INTO portfolio (id, data, updated_at) VALUES (1, ?, ?) ON CONFLICT(id) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at").bind(data, updatedAt).run();

@@ -14,7 +14,7 @@
 
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); color: var(--ink); font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
-button, input { font: inherit; }
+button, input, select { font: inherit; }
 button { cursor: pointer; }
 .app { max-width: 1600px; margin: auto; padding: 22px; }
 .hero { display: flex; align-items: center; justify-content: space-between; gap: 18px; }
@@ -43,10 +43,34 @@ input[type=file] { display: none; }
 .progress-wrap progress::-webkit-progress-bar { background: #dce3ec; border-radius: 999px; }
 .progress-wrap progress::-webkit-progress-value { background: var(--blue); border-radius: 999px; transition: width .25s ease; }
 .progress-wrap progress::-moz-progress-bar { background: var(--blue); border-radius: 999px; }
-.summary { display: grid; grid-template-columns: repeat(5, minmax(155px, 1fr)); gap: 10px; margin-bottom: 16px; }
+.summary, .trade-summary { display: grid; grid-template-columns: repeat(4, minmax(155px, 1fr)); gap: 10px; margin-bottom: 16px; }
 .metric { background: var(--card); border: 1px solid var(--line); border-radius: 13px; padding: 15px; box-shadow: 0 5px 18px rgba(16,42,67,.04); }
 .metric small { display: block; color: var(--muted); font-weight: 700; }
 .metric strong { display: block; margin-top: 5px; font-size: 23px; }
+.trade-log { margin-bottom: 28px; }
+.section-heading { display: flex; align-items: end; justify-content: space-between; gap: 18px; margin: 0 0 12px; }
+.section-heading h2, .section-title { margin: 0; color: var(--navy); font-size: clamp(22px, 3vw, 28px); }
+.section-heading p { margin: 4px 0 0; color: var(--muted); line-height: 1.5; }
+.section-title { margin-bottom: 12px; }
+.trade-form { display: grid; grid-template-columns: repeat(6, minmax(120px, 1fr)); gap: 12px; margin-bottom: 14px; padding: 16px; background: var(--card); border: 1px solid var(--line); border-radius: 13px; box-shadow: 0 5px 18px rgba(16,42,67,.04); }
+.trade-form label { color: var(--muted); font-size: 13px; font-weight: 800; }
+.trade-form input, .trade-form select { width: 100%; min-height: 42px; margin-top: 5px; padding: 9px 10px; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; color: var(--ink); }
+.trade-form input[readonly] { background: #eef2f6; color: #344054; font-weight: 800; }
+.trade-form small { display: block; margin-top: 3px; color: var(--muted); font-weight: 500; }
+.trade-form-actions { display: flex; align-items: end; gap: 8px; grid-column: 1 / -1; }
+.form-message { grid-column: 1 / -1; min-height: 20px; margin: 0; color: var(--bad); font-size: 13px; font-weight: 700; }
+.form-message.positive { color: var(--good); }
+.trade-table { min-width: 940px; font-size: 13px; }
+.trade-table th, .trade-table td { padding: 8px; }
+.trade-table th:first-child, .trade-table td:first-child { min-width: 150px; }
+.trade-table th:last-child, .trade-table td:last-child { text-align: left; }
+.trade-row-actions { display: flex; gap: 6px; }
+.trade-row-actions button { padding: 6px 9px; }
+.danger { color: var(--bad); }
+.trade-action { display: inline-block; min-width: 64px; border-radius: 999px; padding: 4px 8px; text-align: center; font-size: 12px; font-weight: 800; }
+.trade-action.buy { background: #e8f1ff; color: var(--blue); }
+.trade-action.sell { background: #fff3cd; color: var(--warn); }
+.trade-table-wrap { margin-bottom: 0; }
 .portfolio-table-section { position: relative; }
 .table-scroll-controls { position: sticky; top: 0; z-index: 8; display: grid; grid-template-columns: auto auto minmax(100px, 1fr) auto; align-items: center; gap: 7px; margin: 0 0 7px; padding: 5px 7px; border: 1px solid var(--line); border-radius: 9px; background: #fff; box-shadow: 0 4px 12px rgba(16,42,67,.12); }
 .table-scroll-controls[hidden] { display: none; }
@@ -120,13 +144,17 @@ td input { width: 64px; border: 1px solid #cbd5e1; border-radius: 6px; padding: 
 .help-formula { padding: 12px 14px; background: #eaf7f8; border-left: 4px solid var(--teal); border-radius: 8px; color: #344054; line-height: 1.6; }
 
 @media (max-width: 900px) {
-  .summary { grid-template-columns: repeat(2, 1fr); }
+  .summary, .trade-summary { grid-template-columns: repeat(2, 1fr); }
+  .trade-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .app { padding: 12px; }
   .metric { padding: 12px; }
   .metric strong { font-size: 20px; }
 }
 
 @media (max-width: 650px) {
+  .trade-form { grid-template-columns: 1fr; }
+  .trade-form-actions { align-items: stretch; flex-direction: column; }
+  .trade-form-actions button { width: 100%; }
   .table-scroll-controls { display: none !important; }
   .help-grid { grid-template-columns: 1fr; }
   .help-card.wide { grid-column: auto; }

@@ -1,6 +1,15 @@
 # Harvester Turtle
 
-Harvester Turtle is a static, browser-based portfolio calculator derived only from the first sheet of `Harvester Trutle.xlsx`. It supports optional live prices, secure Cloudflare D1 portfolio sync, local offline saving, and JSON import/export.
+Harvester Turtle is a static, browser-based portfolio calculator derived only from the first sheet of `Harvester Trutle.xlsx`. It also includes a buy/sell trade log with realized profit/loss tracking. The app supports optional live prices, secure Cloudflare D1 sync, local offline saving, and JSON import/export.
+
+## Trade log and realized profit/loss
+
+- Log the transaction type, stock symbol, total dollar amount, shares, and date/time.
+- Price per share is calculated as `dollar amount / shares`.
+- Realized profit/loss uses FIFO (first in, first out): every sale consumes the oldest available purchase lots for the same symbol first.
+- A sale is rejected when there are not enough earlier purchased shares to match it.
+- Editing or deleting a purchase is also blocked when that change would leave a later sale unmatched.
+- Trade records are included with the portfolio in local saving, cloud sync, export, and import. Older stock-only local/cloud data and export files remain supported.
 
 ## Calculation rules
 

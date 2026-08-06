@@ -1,4 +1,5 @@
 const { calculate, normalizeStock } = HarvesterCalculator;
+const { calculatePricePerShare, normalizeTrade, isValidTrade, calculateLedger } = HarvesterTrades;
 const seed = [
   {symbol:"MRVL",current:220,buyPrice:205.57,invested:20,growthGoal:.03,harvestRate:.20,minimumHarvest:1,previousClose:210.99},
   {symbol:"NVDA",current:208.76,buyPrice:207.33,invested:34.7,growthGoal:.03,harvestRate:.20,minimumHarvest:1,previousClose:212.06},
@@ -13,6 +14,7 @@ const seed = [
 ];
 const clone=value=>JSON.parse(JSON.stringify(value));
 const storageKey="harvesterDataV2";
+const tradeStorageKey="harvesterTradesV1";
 const rows=document.getElementById("rows");
 const tableWrap=document.getElementById("tableWrap"),tableScrollControls=document.getElementById("tableScrollControls"),tableScrollPosition=document.getElementById("tableScrollPosition"),scrollTableLeft=document.getElementById("scrollTableLeft"),scrollTableRight=document.getElementById("scrollTableRight");
 function updateTableScrollControls(){
@@ -46,17 +48,27 @@ function loadStocks(){
   }catch{}
   return clone(seed).map(normalizeStock);
 }
+function loadTrades(){
+  try{
+    const saved=JSON.parse(localStorage.getItem(tradeStorageKey));
+    if(Array.isArray(saved))return saved.map(normalizeTrade).filter(isValidTrade);
+  }catch{}
+  return [];
+}
 let stocks=loadStocks();
+let trades=loadTrades();
 let cloudReady=false;
 let syncTimer=null;
 let sortKey="symbol";
 let sortDirection="asc";
 const save=()=>{
   localStorage.setItem(storageKey,JSON.stringify(stocks));
+  localStorage.setItem(tradeStorageKey,JSON.stringify(trades));
   if(cloudReady)scheduleCloudSave();
 };
 const money=n=>Number.isFinite(n)?n.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}):"—";
 const number=(n,digits=2)=>Number.isFinite(n)?n.toLocaleString(undefined,{minimumFractionDigits:digits,maximumFractionDigits:digits}):"—";
+const quantity=n=>Number.isFinite(n)?n.toLocaleString(undefined,{maximumFractionDigits:6}):"—";
 const percent=n=>Number.isFinite(n)?`${(n*100).toFixed(2)}%`:"—";
 const escapeHtml=text=>String(text).replace(/[&<>"']/g,char=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[char]));
 function pill(text){
@@ -133,8 +145,7 @@ function render(saveData=true){
   totalProfit.className=tp>=0?"positive":"negative";totalHarvest.textContent=money(th);if(saveData)save();
   requestAnimationFrame(()=>{updateTableScrollControls();syncFloatingTableHeader()});
 }
-const tableHead=document.querySelector("thead");
-const mainTable=tableWrap.querySelector("table"),floatingTableHeader=document.getElementById("floatingTableHeader"),floatingTableHeaderScroll=document.getElementById("floatingTableHeaderScroll"),floatingTableHeaderTable=document.getElementById("floatingTableHeaderTable"),floatingTableHead=document.getElementById("floatingTableHead");
+const mainTable=tableWrap.querySelector("table"),tableHead=mainTable.tHead,floatingTableHeader=document.getElementById("floatingTableHeader"),floatingTableHeaderScroll=document.getElementById("floatingTableHeaderScroll"),floatingTableHeaderTable=document.getElementById("floatingTableHeaderTable"),floatingTableHead=document.getElementById("floatingTableHead");
 floatingTableHead.innerHTML=tableHead.innerHTML;
 function updateFloatingHeaderPosition(){
   const wrapBox=tableWrap.getBoundingClientRect(),headerBox=tableHead.getBoundingClientRect(),controlsBox=tableScrollControls.getBoundingClientRect();
@@ -215,6 +226,106 @@ rows.addEventListener("click",event=>{
   const stock=stocks.find(item=>item.id===id);
   if(confirm(`Remove ${stock?stock.symbol:"this stock"}?`)){stocks=stocks.filter(item=>item.id!==id);render()}
 });
+const tradeForm=document.getElementById("tradeForm"),tradeId=document.getElementById("tradeId"),tradeType=document.getElementById("tradeType"),tradeSymbol=document.getElementById("tradeSymbol"),tradeAmount=document.getElementById("tradeAmount"),tradeShares=document.getElementById("tradeShares"),tradePrice=document.getElementById("tradePrice"),tradeDateTime=document.getElementById("tradeDateTime"),tradeRows=document.getElementById("tradeRows"),tradeFormMessage=document.getElementById("tradeFormMessage"),logTrade=document.getElementById("logTrade"),cancelTradeEdit=document.getElementById("cancelTradeEdit");
+const tradeTotalBought=document.getElementById("tradeTotalBought"),tradeTotalSold=document.getElementById("tradeTotalSold"),tradeOpenCost=document.getElementById("tradeOpenCost"),tradeRealizedProfit=document.getElementById("tradeRealizedProfit");
+const toLocalDateTimeValue=value=>{
+  const date=value?new Date(value):new Date();
+  const local=new Date(date.getTime()-(date.getTimezoneOffset()*60000));
+  return local.toISOString().slice(0,16);
+};
+function setTradeMessage(message,tone=""){
+  tradeFormMessage.textContent=message;
+  tradeFormMessage.className=`form-message ${tone}`;
+}
+function updateTradePrice(){
+  const price=calculatePricePerShare(tradeAmount.value,tradeShares.value);
+  tradePrice.value=price?money(price):"—";
+}
+function resetTradeForm(message=""){
+  tradeForm.reset();
+  tradeId.value="";
+  tradeType.value="buy";
+  tradeDateTime.value=toLocalDateTimeValue();
+  tradePrice.value="—";
+  logTrade.textContent="Log Trade";
+  cancelTradeEdit.hidden=true;
+  setTradeMessage(message,message?"positive":"");
+}
+function renderTrades(){
+  const ledger=calculateLedger(trades);
+  const entries=[...ledger.entries].sort((left,right)=>new Date(right.tradedAt)-new Date(left.tradedAt)||new Date(right.createdAt)-new Date(left.createdAt));
+  tradeRows.innerHTML=entries.length?"":'<tr><td class="empty" colspan="8">No trades logged yet.</td></tr>';
+  entries.forEach(entry=>{
+    const realized=entry.type==="sell"
+      ? `<span class="${entry.realizedProfitLoss>=0?"positive":"negative"}">${money(entry.realizedProfitLoss)}</span>`
+      : "—";
+    tradeRows.insertAdjacentHTML("beforeend",`<tr>
+      <td>${escapeHtml(new Date(entry.tradedAt).toLocaleString([],{dateStyle:"medium",timeStyle:"short"}))}</td>
+      <td><strong>${escapeHtml(entry.symbol)}</strong></td>
+      <td><span class="trade-action ${entry.type}">${entry.type==="buy"?"Bought":"Sold"}</span></td>
+      <td>${quantity(entry.shares)}</td><td>${money(entry.pricePerShare)}</td><td>${money(entry.amount)}</td><td>${realized}</td>
+      <td><div class="trade-row-actions"><button data-edit-trade="${escapeHtml(entry.id)}">Edit</button><button class="danger" data-delete-trade="${escapeHtml(entry.id)}">Delete</button></div></td>
+    </tr>`);
+  });
+  tradeTotalBought.textContent=money(ledger.summary.totalBought);
+  tradeTotalSold.textContent=money(ledger.summary.totalSold);
+  tradeOpenCost.textContent=money(ledger.summary.openCost);
+  tradeRealizedProfit.textContent=money(ledger.summary.realizedProfitLoss);
+  tradeRealizedProfit.className=ledger.summary.realizedProfitLoss>=0?"positive":"negative";
+}
+tradeForm.addEventListener("input",event=>{
+  if(event.target===tradeAmount||event.target===tradeShares)updateTradePrice();
+  if(event.target===tradeSymbol)tradeSymbol.value=tradeSymbol.value.toUpperCase();
+  setTradeMessage("");
+});
+tradeForm.addEventListener("submit",event=>{
+  event.preventDefault();
+  const existing=trades.find(item=>item.id===tradeId.value);
+  const tradedDate=new Date(tradeDateTime.value);
+  const candidate=normalizeTrade({
+    id:existing?existing.id:undefined,
+    type:tradeType.value,
+    symbol:tradeSymbol.value,
+    amount:tradeAmount.value,
+    shares:tradeShares.value,
+    tradedAt:Number.isFinite(tradedDate.getTime())?tradedDate.toISOString():"invalid",
+    createdAt:existing?existing.createdAt:new Date().toISOString(),
+  });
+  if(!isValidTrade(candidate)){
+    setTradeMessage("Enter a valid stock symbol, dollar amount, number of shares, and date.");
+    return;
+  }
+  const nextTrades=existing?trades.map(item=>item.id===existing.id?candidate:item):[...trades,candidate];
+  if(calculateLedger(nextTrades).hasUnmatchedSales){
+    setTradeMessage("This would leave a sale without enough earlier purchased shares. Add or correct the earlier purchase first.");
+    return;
+  }
+  trades=nextTrades.map(normalizeTrade);
+  renderTrades();save();resetTradeForm(existing?"Trade updated.":"Trade logged.");
+});
+cancelTradeEdit.addEventListener("click",()=>resetTradeForm());
+tradeRows.addEventListener("click",event=>{
+  const editId=event.target.dataset.editTrade,deleteId=event.target.dataset.deleteTrade;
+  if(editId){
+    const trade=trades.find(item=>item.id===editId);if(!trade)return;
+    tradeId.value=trade.id;tradeType.value=trade.type;tradeSymbol.value=trade.symbol;
+    tradeAmount.value=trade.amount;tradeShares.value=trade.shares;tradeDateTime.value=toLocalDateTimeValue(trade.tradedAt);
+    updateTradePrice();logTrade.textContent="Save Changes";cancelTradeEdit.hidden=false;setTradeMessage("");
+    tradeForm.scrollIntoView({behavior:"smooth",block:"center"});tradeSymbol.focus();
+    return;
+  }
+  if(deleteId){
+    const trade=trades.find(item=>item.id===deleteId);if(!trade)return;
+    if(!confirm(`Delete this ${trade.type==="buy"?"purchase":"sale"} of ${trade.symbol}?`))return;
+    const nextTrades=trades.filter(item=>item.id!==deleteId);
+    if(calculateLedger(nextTrades).hasUnmatchedSales){
+      setTradeMessage("That purchase is needed by a later sale. Edit or delete the later sale first.");
+      tradeForm.scrollIntoView({behavior:"smooth",block:"center"});return;
+    }
+    trades=nextTrades;if(tradeId.value===deleteId)resetTradeForm();renderTrades();save();
+  }
+});
+resetTradeForm();
 addStock.onclick=()=>{
   const entered=prompt("Enter the stock symbol, for example AAPL:");if(entered===null)return;
   const symbol=entered.trim().toUpperCase();
@@ -222,15 +333,21 @@ addStock.onclick=()=>{
   stocks.push(normalizeStock({symbol,current:0,buyPrice:0,invested:0,growthGoal:.03,harvestRate:.20,minimumHarvest:1,previousClose:0}));render();
 };
 exportData.onclick=()=>{
-  const url=URL.createObjectURL(new Blob([JSON.stringify(stocks,null,2)],{type:"application/json"}));
+  const backup={version:3,exportedAt:new Date().toISOString(),stocks,trades};
+  const url=URL.createObjectURL(new Blob([JSON.stringify(backup,null,2)],{type:"application/json"}));
   const anchor=document.createElement("a");anchor.href=url;anchor.download="harvester-turtle-data.json";anchor.click();setTimeout(()=>URL.revokeObjectURL(url),0);
 };
 importData.onchange=async event=>{
   try{
     const file=event.target.files&&event.target.files[0];if(!file)return;
-    const data=JSON.parse(await file.text());if(!Array.isArray(data)||!data.length)throw new Error();
-    const clean=data.map(normalizeStock).filter(stock=>stock.symbol);if(clean.length!==data.length)throw new Error();
-    stocks=clean;render();
+    const data=JSON.parse(await file.text());
+    const importedStocks=Array.isArray(data)?data:data&&data.stocks;
+    const importedTrades=Array.isArray(data)?[]:data&&data.trades;
+    if(!Array.isArray(importedStocks)||!Array.isArray(importedTrades))throw new Error();
+    const cleanStocks=importedStocks.map(normalizeStock).filter(stock=>stock.symbol);
+    const cleanTrades=importedTrades.map(normalizeTrade).filter(isValidTrade);
+    if(cleanStocks.length!==importedStocks.length||cleanTrades.length!==importedTrades.length||calculateLedger(cleanTrades).hasUnmatchedSales)throw new Error();
+    stocks=cleanStocks;trades=cleanTrades;render();renderTrades();
   }catch{alert("That file is not valid Harvester Turtle data.")}finally{event.target.value=""}
 };
 const settingsModal=document.getElementById("settingsModal"),quoteApiUrl=document.getElementById("quoteApiUrl"),syncKeyInput=document.getElementById("syncKey"),syncStatus=document.getElementById("syncStatus"),priceStatus=document.getElementById("priceStatus");
@@ -279,9 +396,9 @@ async function cloudRequest(method,body){
 }
 async function pushPortfolio(){
   if(!getSyncKey())return;
-  setSyncStatus("Saving portfolio to Cloudflare…");
-  await cloudRequest("PUT",{stocks});
-  setSyncStatus(`Portfolio synced at ${new Date().toLocaleTimeString([],{hour:"numeric",minute:"2-digit"})}.`,"positive");
+  setSyncStatus("Saving portfolio and trade log to Cloudflare…");
+  await cloudRequest("PUT",{stocks,trades});
+  setSyncStatus(`Portfolio and trade log synced at ${new Date().toLocaleTimeString([],{hour:"numeric",minute:"2-digit"})}.`,"positive");
 }
 function scheduleCloudSave(){
   clearTimeout(syncTimer);
@@ -294,9 +411,11 @@ async function initializeCloudSync(){
     const data=await cloudRequest("GET");
     if(data.portfolio&&Array.isArray(data.portfolio.stocks)){
       stocks=data.portfolio.stocks.map(normalizeStock).filter(stock=>stock.symbol);
+      trades=Array.isArray(data.portfolio.trades)?data.portfolio.trades.map(normalizeTrade).filter(isValidTrade):[];
       localStorage.setItem(storageKey,JSON.stringify(stocks));
-      render();
-      setSyncStatus("Portfolio loaded from Cloudflare.","positive");
+      localStorage.setItem(tradeStorageKey,JSON.stringify(trades));
+      render();renderTrades();
+      setSyncStatus("Portfolio and trade log loaded from Cloudflare.","positive");
     }else{
       await pushPortfolio();
     }
@@ -422,4 +541,4 @@ async function refreshPrices(openSettings=false){
     priceRefreshRunning=false;
   }
 }
-updateSortHeaders();render();initializeCloudSync().then(()=>refreshPrices(false));
+updateSortHeaders();render();renderTrades();initializeCloudSync().then(()=>refreshPrices(false));
