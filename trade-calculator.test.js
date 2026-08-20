@@ -87,6 +87,14 @@ const unmatched = calculateLedger([
 ]);
 assert.equal(unmatched.entries[0].matchedShares, 0);
 assert.equal(unmatched.entries[0].unmatchedShares, 2);
+assert.equal(unmatched.summary.unmatchedShares, 2);
 assert.equal(unmatched.hasUnmatchedSales, true);
+
+const repairedHistory = calculateLedger([
+  {id: "sell", type: "sell", symbol: "NVDA", pricePerShare: 150, shares: 2, tradedAt: "2026-05-01T10:00:00Z"},
+  {id: "earlier-buy", type: "buy", symbol: "NVDA", pricePerShare: 100, shares: 2, tradedAt: "2026-04-01T10:00:00Z"},
+]);
+assert.equal(repairedHistory.summary.unmatchedShares, 0);
+assert.equal(repairedHistory.hasUnmatchedSales, false);
 
 console.log("trade calculator tests: OK");

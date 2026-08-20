@@ -526,8 +526,9 @@ function renderTrades() {
 
 tradeForm.addEventListener("input", event => {
   if (event.target === $("tradeShares") || event.target === $("tradePrice")) updateTradeAmount();
+  setTradeMessage("");
 });
-$("tradeType").addEventListener("change", updateTradeMode);
+$("tradeType").addEventListener("change", () => { updateTradeMode(); setTradeMessage(""); });
 $("tradeSort").addEventListener("change", renderTrades);
 $("cancelTradeEdit").addEventListener("click", () => resetTradeForm());
 tradeForm.addEventListener("submit", event => {
@@ -556,8 +557,14 @@ tradeForm.addEventListener("submit", event => {
   if (!isValidTrade(candidate)) return setTradeMessage(isDeposit ? "Enter a positive deposit amount and valid date." : "Choose a stock and enter positive shares, price, and a valid date.");
   let nextTrades = existing ? trades.map(item => item.id === existing.id ? candidate : item) : [...trades, candidate];
   if (!isDeposit && candidate.status === "executed") nextTrades = ensureOpeningForSymbol(candidate.symbol, nextTrades);
+  const currentLedger = calculateLedger(trades, appSettings.taxRate);
   const nextLedger = calculateLedger(nextTrades, appSettings.taxRate);
-  if (nextLedger.hasUnmatchedSales) return setTradeMessage("This sale is larger than the earlier available shares. Correct the shares or add the missing earlier purchase.");
+  if (nextLedger.summary.unmatchedShares > currentLedger.summary.unmatchedShares + 1e-8) {
+    const message = candidate.type === "sell"
+      ? "This sale would leave more sold shares than the earlier available purchases. Correct the shares or add the missing earlier purchase."
+      : "This purchase change would leave a later sale without enough earlier shares. Correct the shares or date first.";
+    return setTradeMessage(message);
+  }
   trades = nextTrades.map(normalizeTrade);
   persist();
   render();
@@ -578,7 +585,8 @@ $("tradeRows").addEventListener("click", event => {
   const entry = trades.find(item => item.id === deleteId);
   if (!entry || !confirm(`Delete this ${entry.type === "deposit" ? "deposit" : entry.type === "buy" ? "purchase" : "sale"} log?`)) return;
   const nextTrades = trades.filter(item => item.id !== deleteId);
-  if (calculateLedger(nextTrades, appSettings.taxRate).hasUnmatchedSales) return setTradeMessage("This purchase cannot be deleted because a later sale needs those shares.");
+  const currentUnmatchedShares = calculateLedger(trades, appSettings.taxRate).summary.unmatchedShares;
+  if (calculateLedger(nextTrades, appSettings.taxRate).summary.unmatchedShares > currentUnmatchedShares + 1e-8) return setTradeMessage("This purchase cannot be deleted because a later sale needs those shares.");
   trades = nextTrades;
   if ($("tradeId").value === deleteId) resetTradeForm();
   persist();
@@ -683,7 +691,7 @@ async function importBackupFile(file) {
   if (!Array.isArray(importedStocks) || !Array.isArray(importedTrades)) throw new Error("That JSON file is not a valid Harvester Turtle backup.");
   const cleanStocks = importedStocks.map(normalizeStockState).filter(stock => stock.symbol);
   const cleanTrades = importedTrades.map(normalizeTrade).filter(isValidTrade);
-  if (cleanStocks.length !== importedStocks.length || cleanTrades.length !== importedTrades.length || calculateLedger(cleanTrades, appSettings.taxRate).hasUnmatchedSales) throw new Error("That JSON file is not a valid Harvester Turtle backup.");
+  if (cleanStocks.length !== importedStocks.length || cleanTrades.length !== importedTrades.length) throw new Error("That JSON file is not a valid Harvester Turtle backup.");
   if (!confirm("Replace the current portfolio and logs with this backup? A recovery copy will be kept on this device.")) return;
   localStorage.setItem(`harvesterImportBackup-${Date.now()}`, JSON.stringify({version: 4, savedAt: stateSavedAt, stocks, trades, preferences: appSettings}));
   stocks = cleanStocks;
@@ -754,9 +762,6 @@ function scheduleCloudSave() {
 function applyRemotePortfolio(remote) {
   const remoteStocks = remote.stocks.map(normalizeStockState).filter(stock => stock.symbol);
   const remoteTrades = Array.isArray(remote.trades) ? remote.trades.map(normalizeTrade).filter(isValidTrade) : [];
-  if (calculateLedger(remoteTrades, appSettings.taxRate).hasUnmatchedSales) {
-    throw new Error("Cloud log history is incomplete because a sale has no matching purchase");
-  }
   stocks = remoteStocks;
   trades = migrateOpeningPositions(remoteStocks, remoteTrades);
   if (remote.preferences) {

@@ -189,6 +189,7 @@
     Object.values(pendingBySymbol).forEach(items => items.sort((left, right) => new Date(right.createdAt) - new Date(left.createdAt)));
 
     const realizedProfitLoss = realizedProfit - realizedLoss;
+    const unmatchedShares = entries.reduce((sum, entry) => sum + entry.unmatchedShares, 0);
     const normalizedTaxRate = Math.min(1, Math.max(0, finite(taxRate)));
     const estimatedTax = Math.max(realizedProfitLoss, 0) * normalizedTaxRate;
     const finalHarvest = realizedProfitLoss - estimatedTax;
@@ -208,6 +209,7 @@
         realizedProfit,
         realizedLoss,
         realizedProfitLoss,
+        unmatchedShares,
         taxRate: normalizedTaxRate,
         estimatedTax,
         finalHarvest,
