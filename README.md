@@ -5,7 +5,7 @@ Harvester Turtle is a build-free, phone-friendly portfolio and trade tracker. It
 ## What it tracks
 
 - Stocks added through the app menu.
-- Executed buys and sells with shares, execution price, date/time, and notes.
+- Executed buys and sells with shares, execution price, date, and notes.
 - Deposits and total deposited cash.
 - Pending limit buys and sells, kept separate from executed trades.
 - FIFO cost basis, including partial-lot sales.
@@ -21,8 +21,8 @@ Harvester Turtle is a build-free, phone-friendly portfolio and trade tracker. It
 - `Final Harvest = realized profit - realized loss - estimated tax`.
 - `Harvest Price = Average Price × (1 + Growth Goal)`. It does not change when Invested Amount changes.
 - Harvest Cash appears only when the current price reaches Harvest Price and the calculated harvest meets Min. Cash.
-- Robinhood CSV import accepts the standard nine activity-report columns, merges Buy, Sell, and positive ACH deposit rows, and skips activity already imported. Unsupported activity is reported without changing it.
-- Robinhood CSV export uses the same nine-column layout. Pending limits and migrated opening balances stay in the complete JSON backup instead of being represented as completed Robinhood activity.
+- CSV import accepts Robinhood's standard nine activity-report columns, merges Buy, Sell, positive ACH deposit, and Harvester Turtle LB/LS pending-limit rows, and skips activity already imported. Unsupported activity is reported without changing it.
+- CSV export uses the same nine-column layout and includes every executed trade, deposit, and pending limit. Pending buys use Trans Code `LB`; pending sells use `LS`. Portfolio display settings are not included.
 
 Existing browser data is migrated automatically. Before migration, the previous local-storage values are retained in a recovery record. Existing manual holdings become Opening position lots so their cost basis is preserved for future FIFO sales.
 

@@ -27,7 +27,7 @@
         <li>Use the three-line menu to add the stocks you follow.</li>
         <li>Press <strong>Log</strong> to record a buy, sale, deposit, or pending limit order.</li>
         <li>Press <strong>Refresh Prices</strong> when you want new market prices. Reloading the webpage is separate, unlimited, and does not use a price update.</li>
-        <li>Download a backup periodically, especially before clearing browser data or changing phones. Exporting only downloads a copy and never changes or deletes app data. Robinhood CSV import/export is available separately.</li>
+        <li>Use <strong>Export Data (CSV)</strong> periodically. It uses Robinhood's column layout and includes executed activity plus pending LB/LS orders. Exporting never changes or deletes app data.</li>
       </ol>
     </section>
 
@@ -40,14 +40,14 @@
 
     <section class="help-card">
       <h2>Deposits</h2>
-      <p>Choose <strong>Deposit</strong> in Logs, enter the cash amount, date/time, and an optional note. Deposits update Total Deposited but never change stock profit/loss, FIFO, or estimated tax.</p>
+      <p>Choose <strong>Deposit</strong> in Logs, enter the cash amount, date, and an optional note. Deposits update Total Deposited but never change stock profit/loss, FIFO, or estimated tax.</p>
     </section>
 
     <section class="help-card">
       <h2>Pending limit orders</h2>
       <p>Check <strong>Limit order</strong> when the order has not filled. Pending limits are saved but excluded from shares and realized results.</p>
-      <p>Use <strong>Mark Filled</strong> when Robinhood executes it. Review the actual fill price and time before saving.</p>
-      <p>The portfolio shows compact labels such as LB-1x$130.00-5d and LS-2x$227.50-3d. LB means limit buy; LS means limit sell. The days are counted from the order date and time entered in the log.</p>
+      <p>Use <strong>Mark Filled</strong> when Robinhood executes it. Review the actual fill price and date before saving.</p>
+      <p>The portfolio shows compact labels such as LB-1x$130.00-5d and LS-2x$227.50-3d. LB means limit buy; LS means limit sell. The days are counted from the order date entered in the log.</p>
     </section>
 
     <section class="help-card">
@@ -81,16 +81,15 @@
       <h2>Menu options</h2>
       <dl>
         <dt>Set Goal for All</dt><dd>Changes the growth goal for every tracked stock at once.</dd>
-        <dt>Import Data</dt><dd>Accepts Robinhood CSV reports and Harvester Turtle JSON backups. CSV import adds Buy, Sell, and positive ACH deposit rows, adds missing stock symbols, and skips activity already imported. If a report contains a sale but not its earlier purchase, you can add the missing purchase afterward; existing incomplete history will not block new buys. Unsupported rows such as dividends, interest, fees, options, and stock receipts are reported instead of being misclassified.</dd>
-        <dt>Replace All Logs from Robinhood CSV</dt><dd>Creates and downloads a recovery backup, removes every existing log including app-generated opening balances and pending limits, clears the old manual cost values, and imports the selected Robinhood report as the new clean history. It keeps the stock list, current prices, goals, and app settings.</dd>
-        <dt>Backup Export / Import</dt><dd>Downloads or restores the complete Harvester Turtle data set: stocks, logs, deposits, limits, and settings. Export never deletes app data. Backup import keeps a recovery copy first.</dd>
+        <dt>Export Data (CSV)</dt><dd>Downloads one Robinhood-shaped CSV containing executed Buy, Sell, and ACH deposit rows plus pending limit orders. Pending buys use Trans Code LB and pending sells use LS; their date, stock, shares, price, amount, and note are preserved.</dd>
+        <dt>Import Data (CSV)</dt><dd>Accepts Robinhood reports and Harvester Turtle exports with the same nine columns. It merges new rows, keeps existing logs and pending limits, adds missing stock symbols, and skips duplicates. Unsupported Robinhood activity is reported without being misclassified.</dd>
         <dt>Sync Now</dt><dd>Checks Cloudflare for newer changes, then safely loads or saves the latest copy. Stocks, deletions, logs, and app settings sync between devices using the same private key.</dd>
       </dl>
     </section>
 
     <section class="help-card wide">
       <h2>Saving and safety</h2>
-      <p>The app saves to this browser first and can optionally sync through your Cloudflare Worker. Older saved data is backed up automatically before the new log format is created.</p>
+      <p>The app saves to this browser first and can optionally sync through your Cloudflare Worker. The CSV export contains the log data needed for trades, deposits, and pending orders; display settings such as current price and growth goal stay in the app and cloud sync instead.</p>
       <p>Removing a stock keeps its logs. Deleting or editing a purchase is blocked when doing so would leave a later executed sale without enough FIFO shares.</p>
       <p>Harvester Turtle is educational software. It is not financial or tax advice and does not guarantee a profit.</p>
     </section>

@@ -7,6 +7,7 @@ const {
   calculateHighLow,
   calculateLedger,
   formatPendingLimit,
+  mergePendingRecovery,
 } = require("./trade-calculator.js");
 
 assert.equal(calculatePricePerShare(400, 2), 200);
@@ -100,5 +101,15 @@ const repairedHistory = calculateLedger([
 ]);
 assert.equal(repairedHistory.summary.unmatchedShares, 0);
 assert.equal(repairedHistory.hasUnmatchedSales, false);
+
+const pendingForRecovery = {id: "pending-old", type: "sell", symbol: "AAPL", shares: 2, pricePerShare: 227.5, orderKind: "limit", status: "pending", tradedAt: "2026-08-10T18:30:00Z"};
+const recoveredPending = mergePendingRecovery([], [pendingForRecovery]);
+assert.equal(recoveredPending.recoveredCount, 1);
+assert.equal(recoveredPending.trades[0].id, "pending-old");
+const noDuplicateRecovery = mergePendingRecovery([pendingForRecovery], [pendingForRecovery]);
+assert.equal(noDuplicateRecovery.recoveredCount, 0);
+const duplicatePendingRecovery = mergePendingRecovery([pendingForRecovery], [pendingForRecovery, {...pendingForRecovery, id: "pending-second"}]);
+assert.equal(duplicatePendingRecovery.recoveredCount, 1);
+assert.equal(duplicatePendingRecovery.trades.at(-1).id, "pending-second");
 
 console.log("trade calculator tests: OK");

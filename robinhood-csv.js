@@ -119,7 +119,7 @@
       }
       const code = cleanText(row["Trans Code"], 20);
       const normalizedCode = code.toLowerCase();
-      if (!["buy", "sell", "ach"].includes(normalizedCode)) {
+      if (!["buy", "sell", "ach", "lb", "ls"].includes(normalizedCode)) {
         unsupportedCodes[code || "Blank code"] = (unsupportedCodes[code || "Blank code"] || 0) + 1;
         return;
       }
@@ -156,6 +156,8 @@
         return;
       }
 
+      const pending = normalizedCode === "lb" || normalizedCode === "ls";
+      const type = normalizedCode === "lb" ? "buy" : normalizedCode === "ls" ? "sell" : normalizedCode;
       const symbol = cleanText(row.Instrument, 20).toUpperCase();
       const shares = finite(cleanText(row.Quantity, 80).replace(/,/g, ""));
       const pricePerShare = Math.abs(parseMoney(row.Price));
@@ -167,14 +169,14 @@
       entries.push({
         id: `${externalId}:${occurrence}`,
         externalId,
-        type: normalizedCode,
+        type,
         symbol,
         shares,
         pricePerShare,
         amount,
-        orderKind: "market",
-        status: "executed",
-        source: "robinhood",
+        orderKind: pending ? "limit" : "market",
+        status: pending ? "pending" : "executed",
+        source: pending ? "log" : "robinhood",
         note: metadata.description,
         tradedAt,
         createdAt: tradedAt,
@@ -194,13 +196,35 @@
 
   function mergeRobinhoodEntries(existing, incoming) {
     const available = new Map();
+    const pendingAvailable = new Map();
+    const pendingFingerprint = entry => {
+      const date = new Date(entry && entry.tradedAt);
+      const dateKey = Number.isFinite(date.getTime()) ? date.toISOString().slice(0, 10) : "";
+      return [entry && entry.type, entry && entry.symbol, finite(entry && entry.shares).toFixed(8), finite(entry && entry.pricePerShare).toFixed(8), dateKey].join("\u001f");
+    };
     (Array.isArray(existing) ? existing : []).forEach(entry => {
+      if (entry && entry.status === "pending") {
+        const key = pendingFingerprint(entry);
+        pendingAvailable.set(key, (pendingAvailable.get(key) || 0) + 1);
+        return;
+      }
       if (!entry || !entry.externalId) return;
       available.set(entry.externalId, (available.get(entry.externalId) || 0) + 1);
     });
     const additions = [];
     let duplicateCount = 0;
     (Array.isArray(incoming) ? incoming : []).forEach(entry => {
+      if (entry && entry.status === "pending") {
+        const key = pendingFingerprint(entry);
+        const remaining = pendingAvailable.get(key) || 0;
+        if (remaining > 0) {
+          duplicateCount += 1;
+          pendingAvailable.set(key, remaining - 1);
+        } else {
+          additions.push(entry);
+        }
+        return;
+      }
       const remaining = available.get(entry.externalId) || 0;
       if (remaining > 0) {
         duplicateCount += 1;
@@ -229,11 +253,12 @@
         Description: cleanText(entry.note) || "ACH Deposit", "Trans Code": "ACH", Quantity: "", Price: "", Amount: formatMoney(entry.amount),
       };
     }
+    const pending = entry.status === "pending";
     const amount = formatMoney(entry.amount || finite(entry.shares) * finite(entry.pricePerShare));
     return {
       "Activity Date": date, "Process Date": date, "Settle Date": date, Instrument: cleanText(entry.symbol, 20).toUpperCase(),
-      Description: cleanText(entry.note) || `${cleanText(entry.symbol, 20).toUpperCase()} Harvester Turtle log`,
-      "Trans Code": entry.type === "sell" ? "Sell" : "Buy",
+      Description: cleanText(entry.note) || (pending ? `Pending Limit ${entry.type === "sell" ? "Sell" : "Buy"}` : `${cleanText(entry.symbol, 20).toUpperCase()} Harvester Turtle log`),
+      "Trans Code": pending ? (entry.type === "sell" ? "LS" : "LB") : entry.type === "sell" ? "Sell" : "Buy",
       Quantity: formatQuantity(entry.shares), Price: formatMoney(entry.pricePerShare), Amount: entry.type === "buy" ? `(${amount})` : amount,
     };
   }
@@ -256,23 +281,20 @@
 
   function buildRobinhoodCsv(trades) {
     const rows = [];
-    let skippedPending = 0;
+    let pendingCount = 0;
     let skippedOpening = 0;
     (Array.isArray(trades) ? trades : []).forEach(entry => {
       if (!entry || entry.source === "opening") {
         skippedOpening += 1;
         return;
       }
-      if (entry.status === "pending") {
-        skippedPending += 1;
-        return;
-      }
       if (!["buy", "sell", "deposit"].includes(entry.type)) return;
+      if (entry.status === "pending") pendingCount += 1;
       rows.push(metadataRow(entry) || generatedRow(entry));
     });
     rows.sort((left, right) => new Date(parseDate(right["Activity Date"])) - new Date(parseDate(left["Activity Date"])));
     const lines = [HEADERS.map(csvField).join(","), ...rows.map(row => HEADERS.map(header => csvField(row[header])).join(","))];
-    return {csv: `${lines.join("\r\n")}\r\n`, rowCount: rows.length, skippedPending, skippedOpening};
+    return {csv: `${lines.join("\r\n")}\r\n`, rowCount: rows.length, pendingCount, skippedOpening};
   }
 
   return {HEADERS, parseCsv, parseMoney, parseRobinhoodCsv, mergeRobinhoodEntries, buildRobinhoodCsv};

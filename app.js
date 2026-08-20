@@ -1,5 +1,5 @@
 const { calculate, normalizeStock } = HarvesterCalculator;
-const { normalizeTrade, isValidTrade, sortTrades, calculateLedger, formatPendingLimit } = HarvesterTrades;
+const { normalizeTrade, isValidTrade, sortTrades, calculateLedger, formatPendingLimit, mergePendingRecovery } = HarvesterTrades;
 const { parseRobinhoodCsv, mergeRobinhoodEntries, buildRobinhoodCsv } = HarvesterRobinhoodCsv;
 const $ = id => document.getElementById(id);
 const clone = value => JSON.parse(JSON.stringify(value));
@@ -7,6 +7,7 @@ const STATE_KEY = "harvesterStateV4";
 const SETTINGS_KEY = "harvesterAppSettingsV1";
 const REFRESH_KEY = "harvesterRefreshUsageV1";
 const MIGRATION_BACKUP_KEY = "harvesterMigrationBackupV4";
+const PENDING_RECOVERY_KEY = "harvesterPendingRecoveryV1";
 const DEFAULT_API_URL = "https://summer-river-8271.atash1317.workers.dev";
 const seed = [
   {symbol:"MRVL",current:220,buyPrice:205.57,invested:20,growthGoal:.03,harvestRate:.20,minimumHarvest:1,previousClose:210.99},
@@ -29,10 +30,10 @@ const localDay = () => {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 };
-const toLocalDateTimeValue = value => {
+const toLocalDateValue = value => {
   const date = value ? new Date(value) : new Date();
   const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
-  return local.toISOString().slice(0, 16);
+  return local.toISOString().slice(0, 10);
 };
 const daysAgo = value => Math.max(0, Math.floor((Date.now() - new Date(value).getTime()) / 86400000));
 
@@ -125,11 +126,32 @@ function migrateOpeningPositions(stocks, trades) {
   return result;
 }
 
+function recoverPendingOrdersFromCleanImportBackup(currentTrades) {
+  const backupKeys = [];
+  for (let index = 0; index < localStorage.length; index += 1) {
+    const key = localStorage.key(index);
+    if (key && key.startsWith("harvesterCleanImportBackup-")) backupKeys.push(key);
+  }
+  backupKeys.sort().reverse();
+  const backupKey = backupKeys[0];
+  if (!backupKey || localStorage.getItem(PENDING_RECOVERY_KEY) === backupKey) return {trades: currentTrades, recoveredCount: 0};
+  try {
+    const backup = JSON.parse(localStorage.getItem(backupKey));
+    const recovered = mergePendingRecovery(currentTrades, backup && backup.trades);
+    localStorage.setItem(PENDING_RECOVERY_KEY, backupKey);
+    return recovered;
+  } catch {
+    return {trades: currentTrades, recoveredCount: 0};
+  }
+}
+
 backupBeforeMigration();
 let appSettings = loadAppSettings();
 const loaded = loadState();
 let stocks = loaded.stocks;
 let trades = loaded.needsOpeningMigration ? migrateOpeningPositions(stocks, loaded.trades) : loaded.trades;
+const pendingRecovery = recoverPendingOrdersFromCleanImportBackup(trades);
+trades = pendingRecovery.trades;
 let stateSavedAt = loaded.savedAt;
 let localDirty = loaded.dirty;
 let cloudReady = false;
@@ -161,7 +183,8 @@ function persist({sync = true, preserveTimestamp = false, markDirty = true} = {}
   saveSettingsLocal();
   if (sync && cloudReady) scheduleCloudSave();
 }
-if (!loaded.savedAt || trades.length !== loaded.trades.length) persist({sync: false, preserveTimestamp: true, markDirty: false});
+if (pendingRecovery.recoveredCount) persist({sync: false});
+else if (!loaded.savedAt || trades.length !== loaded.trades.length) persist({sync: false, preserveTimestamp: true, markDirty: false});
 
 function pill(text) {
   let tone = "";
@@ -444,7 +467,7 @@ function resetTradeForm(message = "") {
   $("tradeType").value = "buy";
   $("tradeShares").value = "";
   $("tradePrice").value = "";
-  $("tradeDateTime").value = toLocalDateTimeValue();
+  $("tradeDate").value = toLocalDateValue();
   $("tradeAmount").value = "";
   $("logTrade").textContent = "Save Log";
   $("cancelTradeEdit").hidden = true;
@@ -465,11 +488,11 @@ function loadTradeIntoForm(entry, {fill = false} = {}) {
   } else {
     $("tradeAmount").value = entry.amount;
   }
-  $("tradeDateTime").value = toLocalDateTimeValue(fill ? new Date() : entry.tradedAt);
+  $("tradeDate").value = toLocalDateValue(fill ? new Date() : entry.tradedAt);
   $("tradeNote").value = entry.note;
   $("logTrade").textContent = fill ? "Save as Filled" : "Save Changes";
   $("cancelTradeEdit").hidden = false;
-  setTradeMessage(fill ? "Review the actual fill price and time, then save." : "Editing this log.");
+  setTradeMessage(fill ? "Review the actual fill price and date, then save." : "Editing this log.");
   tradeForm.scrollIntoView({behavior: "smooth", block: "start"});
 }
 function renderTrades() {
@@ -489,7 +512,7 @@ function renderTrades() {
     } else if (entry.type === "sell") {
       sharesCell = `<span class="${pending ? "" : "sold-portion"}">${quantity(entry.shares)}</span>`;
     }
-    const displayedDate = entry.source === "opening" ? "Opening balance" : new Date(entry.tradedAt).toLocaleString([], {dateStyle: "medium", timeStyle: "short"});
+    const displayedDate = entry.source === "opening" ? "Opening balance" : new Date(entry.tradedAt).toLocaleDateString([], {dateStyle: "medium"});
     let fifoStatus = "Cash deposit";
     if (pending) fifoStatus = `Pending ${entry.type === "buy" ? "buy" : "sell"} • ${daysAgo(entry.tradedAt)}d`;
     else if (entry.type === "sell") fifoStatus = `Cost ${money(entry.fifoCost)} • P/L ${money(entry.realizedProfitLoss)}`;
@@ -526,7 +549,8 @@ tradeForm.addEventListener("submit", event => {
   event.preventDefault();
   const existing = trades.find(item => item.id === $("tradeId").value);
   const type = $("tradeType").value;
-  const tradedDate = new Date($("tradeDateTime").value);
+  const enteredDate = $("tradeDate").value;
+  const tradedDate = new Date(`${enteredDate}T12:00:00`);
   const isDeposit = type === "deposit";
   const pending = !isDeposit && $("tradeLimit").checked;
   const wasLimit = existing && existing.orderKind === "limit";
@@ -589,7 +613,7 @@ function setTradeModal(open) {
   if (open) {
     populateStockChoices();
     renderTrades();
-    if (!$("tradeDateTime").value) resetTradeForm();
+    if (!$("tradeDate").value) resetTradeForm();
   }
 }
 $("openTradeLog").onclick = () => {
@@ -631,12 +655,11 @@ function downloadFile(contents, filename, type) {
 
 $("exportRobinhoodCsv").onclick = () => {
   const result = buildRobinhoodCsv(trades);
-  if (!result.rowCount) return alert("There are no executed trades or deposits to export. Pending limits and opening balances are not Robinhood activity rows.");
-  downloadFile(result.csv, `harvester-turtle-robinhood-${localDay()}.csv`, "text/csv;charset=utf-8");
-  const skipped = [];
-  if (result.skippedPending) skipped.push(`${result.skippedPending} pending limit${result.skippedPending === 1 ? "" : "s"}`);
-  if (result.skippedOpening) skipped.push(`${result.skippedOpening} opening balance${result.skippedOpening === 1 ? "" : "s"}`);
-  if (skipped.length) setStatus(`Exported ${result.rowCount} Robinhood-format rows. Excluded ${skipped.join(" and ")}.`, "good");
+  if (!result.rowCount) return alert("There are no trades, deposits, or pending limits to export.");
+  downloadFile(result.csv, `harvester-turtle-data-${localDay()}.csv`, "text/csv;charset=utf-8");
+  const pendingText = result.pendingCount ? ` It includes ${result.pendingCount} pending limit${result.pendingCount === 1 ? "" : "s"} as LB/LS rows.` : "";
+  const openingText = result.skippedOpening ? ` ${result.skippedOpening} app-generated opening balance${result.skippedOpening === 1 ? " was" : "s were"} not included because they are not Robinhood activity.` : "";
+  setStatus(`Exported ${result.rowCount} trade, deposit, and pending rows to CSV.${pendingText}${openingText}`, "good");
 };
 
 async function importRobinhoodFile(file) {
@@ -659,7 +682,7 @@ async function importRobinhoodFile(file) {
     ? "\n\nSome sales do not have an earlier purchase in the available history, so their profit/loss will be incomplete until the missing earlier purchases are added."
     : "";
   const skippedText = skippedDetails.length ? `\nSkipped: ${skippedDetails.join(", ")}.` : "";
-  if (!confirm(`Add ${additions.length} new Robinhood log${additions.length === 1 ? "" : "s"} and ${symbolsToAdd.length} new stock${symbolsToAdd.length === 1 ? "" : "s"}?${skippedText}${unmatchedWarning}`)) return;
+  if (!confirm(`Add ${additions.length} new CSV log row${additions.length === 1 ? "" : "s"} and ${symbolsToAdd.length} new stock${symbolsToAdd.length === 1 ? "" : "s"}? Existing logs and pending limits will be kept.${skippedText}${unmatchedWarning}`)) return;
   localStorage.setItem(`harvesterCsvImportBackup-${Date.now()}`, JSON.stringify({version: 4, savedAt: stateSavedAt, stocks, trades, preferences: appSettings}));
   symbolsToAdd.forEach(symbol => stocks.push(normalizeStockState({symbol, current: 0, buyPrice: 0, invested: 0, growthGoal: .03, harvestRate: .20, minimumHarvest: 1, previousClose: 0})));
   trades = previewTrades;
@@ -667,90 +690,16 @@ async function importRobinhoodFile(file) {
   render();
   renderTrades();
   const unsupported = Object.entries(parsed.unsupportedCodes).map(([code, count]) => `${code} ${count}`).join(", ");
-  alert(`Imported ${additions.length} new log${additions.length === 1 ? "" : "s"}.${duplicateCount ? ` Skipped ${duplicateCount} duplicate${duplicateCount === 1 ? "" : "s"}.` : ""}${unsupported ? ` Unsupported activity left unchanged: ${unsupported}.` : ""}`);
-}
-
-async function replaceLogsFromRobinhood(file) {
-  const parsed = parseRobinhoodCsv(await file.text());
-  const cleanTrades = parsed.entries.map(normalizeTrade).filter(isValidTrade);
-  if (!cleanTrades.length) throw new Error("No supported Buy, Sell, or positive ACH deposit rows were found in this Robinhood CSV.");
-  const symbolsToAdd = [...new Set(cleanTrades.filter(entry => entry.type !== "deposit").map(entry => entry.symbol))]
-    .filter(symbol => !stocks.some(stock => stock.symbol === symbol))
-    .sort((left, right) => left.localeCompare(right));
-  const unmatchedWarning = calculateLedger(cleanTrades, appSettings.taxRate).hasUnmatchedSales
-    ? "\n\nThe report contains sales without their earlier purchases. Those rows will be kept, but their realized profit/loss will remain incomplete until an older report is imported."
-    : "";
-  const skipped = [];
-  if (parsed.unsupportedRows) skipped.push(`${parsed.unsupportedRows} unsupported row${parsed.unsupportedRows === 1 ? "" : "s"}`);
-  if (parsed.invalidRows) skipped.push(`${parsed.invalidRows} invalid row${parsed.invalidRows === 1 ? "" : "s"}`);
-  const skippedText = skipped.length ? `\n\n${skipped.join(" and ")} will not be imported.` : "";
-  if (!confirm(`Replace ALL current logs with ${cleanTrades.length} supported rows from this Robinhood CSV?\n\nThis removes generated opening balances, manual logs, deposits, and pending limits. Your stock list, prices, goals, and settings will stay. A recovery backup will be downloaded and saved on this device.${skippedText}${unmatchedWarning}`)) return;
-
-  const recovery = {version: 4, exportedAt: new Date().toISOString(), stocks, trades, preferences: appSettings};
-  localStorage.setItem(`harvesterCleanImportBackup-${Date.now()}`, JSON.stringify(recovery));
-  downloadFile(JSON.stringify(recovery, null, 2), `harvester-turtle-before-clean-import-${localDay()}.json`, "application/json");
-  stocks.forEach(stock => {
-    stock.buyPrice = 0;
-    stock.invested = 0;
-  });
-  symbolsToAdd.forEach(symbol => stocks.push(normalizeStockState({symbol, current: 0, buyPrice: 0, invested: 0, growthGoal: .03, harvestRate: .20, minimumHarvest: 1, previousClose: 0})));
-  trades = cleanTrades;
-  persist();
-  render();
-  renderTrades();
-  resetTradeForm();
-  const unsupported = Object.entries(parsed.unsupportedCodes).map(([code, count]) => `${code} ${count}`).join(", ");
-  alert(`Clean import complete: ${cleanTrades.length} Robinhood log${cleanTrades.length === 1 ? "" : "s"} replaced all previous logs.${unsupported ? ` Unsupported activity was left out: ${unsupported}.` : ""}`);
-}
-
-$("exportData").onclick = () => {
-  const backup = {version: 4, exportedAt: new Date().toISOString(), stocks, trades, preferences: appSettings};
-  downloadFile(JSON.stringify(backup, null, 2), `harvester-turtle-backup-${localDay()}.json`, "application/json");
-};
-async function importBackupFile(file) {
-  const data = JSON.parse(await file.text());
-  const importedStocks = Array.isArray(data) ? data : data && data.stocks;
-  const importedTrades = Array.isArray(data) ? [] : data && data.trades;
-  if (!Array.isArray(importedStocks) || !Array.isArray(importedTrades)) throw new Error("That JSON file is not a valid Harvester Turtle backup.");
-  const cleanStocks = importedStocks.map(normalizeStockState).filter(stock => stock.symbol);
-  const cleanTrades = importedTrades.map(normalizeTrade).filter(isValidTrade);
-  if (cleanStocks.length !== importedStocks.length || cleanTrades.length !== importedTrades.length) throw new Error("That JSON file is not a valid Harvester Turtle backup.");
-  if (!confirm("Replace the current portfolio and logs with this backup? A recovery copy will be kept on this device.")) return;
-  localStorage.setItem(`harvesterImportBackup-${Date.now()}`, JSON.stringify({version: 4, savedAt: stateSavedAt, stocks, trades, preferences: appSettings}));
-  stocks = cleanStocks;
-  trades = cleanTrades;
-  if (data.preferences) {
-    appSettings.dailyRefreshLimit = Math.min(100, Math.max(1, Number(data.preferences.dailyRefreshLimit) || appSettings.dailyRefreshLimit));
-    const importedTaxRate = Number(data.preferences.taxRate);
-    if (Number.isFinite(importedTaxRate)) appSettings.taxRate = Math.min(1, Math.max(0, importedTaxRate));
-  }
-  persist();
-  render();
-  renderTrades();
+  alert(`Imported ${additions.length} new log row${additions.length === 1 ? "" : "s"}.${duplicateCount ? ` Skipped ${duplicateCount} duplicate${duplicateCount === 1 ? "" : "s"}.` : ""}${unsupported ? ` Unsupported activity left unchanged: ${unsupported}.` : ""}`);
 }
 
 $("importData").onchange = async event => {
   const file = event.target.files && event.target.files[0];
   if (!file) return;
-  const isCsv = /\.csv$/i.test(file.name) || String(file.type).toLowerCase().includes("csv");
   try {
-    if (isCsv) await importRobinhoodFile(file);
-    else await importBackupFile(file);
+    await importRobinhoodFile(file);
   } catch (error) {
-    const fallback = isCsv ? "That file is not a valid Robinhood activity CSV." : "That JSON file is not a valid Harvester Turtle backup.";
-    alert(error && error.message ? error.message : fallback);
-  } finally {
-    event.target.value = "";
-  }
-};
-
-$("replaceRobinhoodLogs").onchange = async event => {
-  const file = event.target.files && event.target.files[0];
-  if (!file) return;
-  try {
-    await replaceLogsFromRobinhood(file);
-  } catch (error) {
-    alert(error && error.message ? error.message : "That file is not a valid Robinhood activity CSV.");
+    alert(error && error.message ? error.message : "That file is not a valid Robinhood-format CSV.");
   } finally {
     event.target.value = "";
   }
@@ -1000,6 +949,10 @@ $("saveSettings").onclick = async () => {
 
 const lastUpdate = localStorage.getItem("harvesterLastPriceUpdate");
 if (lastUpdate) setStatus(`Prices last updated: ${lastUpdate}. Reloading the page does not update prices or use the daily limit.`, "good");
+if (pendingRecovery.recoveredCount) {
+  setStatus(`Recovered ${pendingRecovery.recoveredCount} pending limit order${pendingRecovery.recoveredCount === 1 ? "" : "s"} from the safety backup.`, "good");
+  setTimeout(() => alert(`Recovered ${pendingRecovery.recoveredCount} pending limit order${pendingRecovery.recoveredCount === 1 ? "" : "s"} automatically. You do not need to re-enter them.`), 0);
+}
 render();
 renderTrades();
 resetTradeForm();

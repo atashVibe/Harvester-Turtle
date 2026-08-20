@@ -107,6 +107,27 @@
     return `${code}-${shares}x$${price}-${ageInDays}d`;
   }
 
+  function mergePendingRecovery(currentTrades, backupTrades) {
+    const current = (Array.isArray(currentTrades) ? currentTrades : []).map(normalizeTrade).filter(isValidTrade);
+    const backupPending = (Array.isArray(backupTrades) ? backupTrades : []).map(normalizeTrade).filter(entry => isValidTrade(entry) && entry.status === "pending");
+    const fingerprint = entry => [entry.type, entry.symbol, entry.shares.toFixed(8), entry.pricePerShare.toFixed(8), entry.tradedAt.slice(0, 10)].join("|");
+    const available = new Map();
+    current.filter(entry => entry.status === "pending").forEach(entry => {
+      const key = fingerprint(entry);
+      available.set(key, (available.get(key) || 0) + 1);
+    });
+    const recovered = backupPending.filter(entry => {
+      const key = fingerprint(entry);
+      const remaining = available.get(key) || 0;
+      if (remaining > 0) {
+        available.set(key, remaining - 1);
+        return false;
+      }
+      return true;
+    });
+    return {trades: [...current, ...recovered], recoveredCount: recovered.length};
+  }
+
   function calculateLedger(trades, taxRate = 0.30) {
     const entries = (Array.isArray(trades) ? trades : []).map((trade, originalIndex) => ({
       ...normalizeTrade(trade),
@@ -229,5 +250,5 @@
     };
   }
 
-  return { calculatePricePerShare, normalizeTrade, isValidTrade, sortTrades, calculateHighLow, calculateLedger, formatPendingLimit };
+  return { calculatePricePerShare, normalizeTrade, isValidTrade, sortTrades, calculateHighLow, calculateLedger, formatPendingLimit, mergePendingRecovery };
 });
