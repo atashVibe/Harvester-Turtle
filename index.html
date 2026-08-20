@@ -13,7 +13,7 @@
   <link rel="icon" type="image/png" href="harvester-turtle-icon.png">
   <link rel="apple-touch-icon" href="harvester-turtle-icon.png">
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="stylesheet" href="styles.css?v=20260820-2">
+  <link rel="stylesheet" href="styles.css?v=20260820-3">
 </head>
 <body>
 <main class="app">
@@ -33,9 +33,9 @@
           <button id="syncNow">Sync Now</button>
           <button id="addStock">+ Add Stock</button>
           <button id="setGoalForAll">Set Goal for All</button>
-          <button id="exportRobinhoodCsv">Export Robinhood CSV</button>
+          <button id="exportRobinhoodCsv">Download Robinhood CSV (keeps data)</button>
           <label class="file-button">Import Robinhood CSV<input id="importRobinhoodCsv" type="file" accept=".csv,text/csv"></label>
-          <button id="exportData">Export Backup</button>
+          <button id="exportData">Download Backup (keeps data)</button>
           <label class="file-button">Import Backup<input id="importData" type="file" accept="application/json"></label>
         </div>
       </div>
@@ -161,7 +161,7 @@
 <div class="modal" id="settingsModal" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
   <div class="modal-card settings-card">
     <h2 id="settingsTitle">Price &amp; App Settings</h2>
-    <p class="note">The private sync key is stored only on this device.</p>
+    <p class="note">The private sync key is stored only on this device. Stocks, logs, deletions, and app settings sync between devices that use the same key.</p>
     <label for="quoteApiUrl">Cloudflare Worker URL</label>
     <input id="quoteApiUrl" placeholder="https://harvester-turtle-quotes.example.workers.dev">
     <label for="syncKey">Private Sync Key</label>
@@ -179,9 +179,9 @@
   </div>
 </div>
 
-<script src="calculator.js?v=20260820-2"></script>
-<script src="trade-calculator.js?v=20260820-2"></script>
-<script src="robinhood-csv.js?v=20260820-2"></script>
-<script src="app.js?v=20260820-2"></script>
+<script src="calculator.js?v=20260820-3"></script>
+<script src="trade-calculator.js?v=20260820-3"></script>
+<script src="robinhood-csv.js?v=20260820-3"></script>
+<script src="app.js?v=20260820-3"></script>
 </body>
 </html>

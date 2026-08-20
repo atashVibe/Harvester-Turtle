@@ -58,6 +58,17 @@ assert.deepEqual(saved.portfolio.stocks, [stock]);
 assert.deepEqual(saved.portfolio.trades, [trade, pendingLimit, deposit]);
 assert.deepEqual(saved.portfolio.preferences, preferences);
 
+const emptyPreferences = {dailyRefreshLimit: 12, taxRate: 0.25};
+const emptyPutResponse = await worker.fetch(new Request("https://example.test/portfolio", {
+  method: "PUT", headers, body: JSON.stringify({ stocks: [], trades: [], preferences: emptyPreferences }),
+}), env);
+assert.equal(emptyPutResponse.status, 200);
+const emptyGetResponse = await worker.fetch(new Request("https://example.test/portfolio", { headers }), env);
+const emptySaved = await emptyGetResponse.json();
+assert.deepEqual(emptySaved.portfolio.stocks, []);
+assert.deepEqual(emptySaved.portfolio.trades, []);
+assert.deepEqual(emptySaved.portfolio.preferences, emptyPreferences);
+
 database.state.data = JSON.stringify([stock]);
 const legacyResponse = await worker.fetch(new Request("https://example.test/portfolio", { headers }), env);
 const legacy = await legacyResponse.json();

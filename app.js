@@ -82,6 +82,7 @@ function loadState() {
         stocks: current.stocks.map(normalizeStockState).filter(stock => stock.symbol),
         trades: current.trades.map(normalizeTrade).filter(isValidTrade),
         savedAt: String(current.savedAt || ""),
+        dirty: current.dirty === true,
       };
     }
   } catch {}
@@ -99,7 +100,7 @@ function loadState() {
     const legacyTrades = JSON.parse(localStorage.getItem("harvesterTradesV1"));
     if (Array.isArray(legacyTrades)) trades = legacyTrades.map(normalizeTrade).filter(isValidTrade);
   } catch {}
-  return {stocks, trades, savedAt: ""};
+  return {stocks, trades, savedAt: "", dirty: false};
 }
 
 function migrateOpeningPositions(stocks, trades) {
@@ -129,8 +130,10 @@ const loaded = loadState();
 let stocks = loaded.stocks;
 let trades = migrateOpeningPositions(stocks, loaded.trades);
 let stateSavedAt = loaded.savedAt;
+let localDirty = loaded.dirty;
 let cloudReady = false;
 let syncTimer = null;
+let cloudSyncPromise = null;
 let priceRefreshRunning = false;
 let portfolioSortKey = "symbol";
 let portfolioSortDirection = "asc";
@@ -150,13 +153,14 @@ floatingTableHead.innerHTML = tableHead.innerHTML;
 function saveSettingsLocal() {
   localStorage.setItem(SETTINGS_KEY, JSON.stringify(appSettings));
 }
-function persist({sync = true, preserveTimestamp = false} = {}) {
+function persist({sync = true, preserveTimestamp = false, markDirty = true} = {}) {
   if (!preserveTimestamp) stateSavedAt = new Date().toISOString();
-  localStorage.setItem(STATE_KEY, JSON.stringify({version: 4, savedAt: stateSavedAt, stocks, trades}));
+  if (markDirty) localDirty = true;
+  localStorage.setItem(STATE_KEY, JSON.stringify({version: 4, savedAt: stateSavedAt, dirty: localDirty, stocks, trades}));
   saveSettingsLocal();
   if (sync && cloudReady) scheduleCloudSave();
 }
-if (!loaded.savedAt || trades.length !== loaded.trades.length) persist({sync: false, preserveTimestamp: true});
+if (!loaded.savedAt || trades.length !== loaded.trades.length) persist({sync: false, preserveTimestamp: true, markDirty: false});
 
 function pill(text) {
   let tone = "";
@@ -731,18 +735,54 @@ async function cloudRequest(method, body) {
 }
 async function pushPortfolio() {
   if (!getSyncKey()) return;
+  clearTimeout(syncTimer);
+  const pushedSavedAt = stateSavedAt;
   setSyncStatus("Saving portfolio and logs to Cloudflare…");
   const result = await cloudRequest("PUT", {version: 4, stocks, trades, preferences: appSettings});
-  if (result.updatedAt) stateSavedAt = result.updatedAt;
+  if (stateSavedAt === pushedSavedAt) {
+    if (result.updatedAt) stateSavedAt = result.updatedAt;
+    localDirty = false;
+    persist({sync: false, preserveTimestamp: true, markDirty: false});
+  } else {
+    scheduleCloudSave();
+  }
   setSyncStatus(`Synced at ${new Date().toLocaleTimeString([], {hour: "numeric", minute: "2-digit"})}.`, "positive");
 }
 function scheduleCloudSave() {
   clearTimeout(syncTimer);
   syncTimer = setTimeout(() => pushPortfolio().catch(error => setSyncStatus(`Sync pending: ${error.message}`, "negative")), 800);
 }
-async function initializeCloudSync() {
+function applyRemotePortfolio(remote) {
+  const remoteStocks = remote.stocks.map(normalizeStockState).filter(stock => stock.symbol);
+  const remoteTrades = Array.isArray(remote.trades) ? remote.trades.map(normalizeTrade).filter(isValidTrade) : [];
+  if (calculateLedger(remoteTrades, appSettings.taxRate).hasUnmatchedSales) {
+    throw new Error("Cloud log history is incomplete because a sale has no matching purchase");
+  }
+  stocks = remoteStocks;
+  trades = migrateOpeningPositions(remoteStocks, remoteTrades);
+  if (remote.preferences) {
+    appSettings.dailyRefreshLimit = Math.min(100, Math.max(1, Number(remote.preferences.dailyRefreshLimit) || appSettings.dailyRefreshLimit));
+    const remoteTaxRate = Number(remote.preferences.taxRate);
+    if (Number.isFinite(remoteTaxRate)) appSettings.taxRate = Math.min(1, Math.max(0, remoteTaxRate));
+  }
+  stateSavedAt = remote.updatedAt || stateSavedAt;
+  localDirty = false;
+  persist({sync: false, preserveTimestamp: true, markDirty: false});
+  render();
+  renderTrades();
+  updateRefreshCount();
+}
+
+async function synchronizeCloud({settingsOverride = null} = {}) {
   if (!getSyncKey()) {
     cloudReady = false;
+    if (settingsOverride) {
+      appSettings = settingsOverride;
+      persist({sync: false});
+      render();
+      renderTrades();
+      updateRefreshCount();
+    }
     setSyncStatus("Cloud sync is not configured on this device.");
     return;
   }
@@ -753,36 +793,56 @@ async function initializeCloudSync() {
     if (remote && Array.isArray(remote.stocks)) {
       const remoteTime = new Date(remote.updatedAt || 0).getTime();
       const localTime = new Date(stateSavedAt || 0).getTime();
-      if (localTime > remoteTime) {
+      if (localDirty && localTime > remoteTime) {
+        if (settingsOverride) {
+          appSettings = settingsOverride;
+          persist({sync: false});
+        }
         cloudReady = true;
         await pushPortfolio();
       } else {
-        const remoteStocks = remote.stocks.map(normalizeStockState).filter(stock => stock.symbol);
-        const remoteTrades = Array.isArray(remote.trades) ? remote.trades.map(normalizeTrade).filter(isValidTrade) : [];
-        if (remoteStocks.length && !calculateLedger(remoteTrades, appSettings.taxRate).hasUnmatchedSales) {
-          stocks = remoteStocks;
-          trades = migrateOpeningPositions(remoteStocks, remoteTrades);
-          if (remote.preferences) {
-            appSettings.dailyRefreshLimit = Math.min(100, Math.max(1, Number(remote.preferences.dailyRefreshLimit) || appSettings.dailyRefreshLimit));
-            const remoteTaxRate = Number(remote.preferences.taxRate);
-            if (Number.isFinite(remoteTaxRate)) appSettings.taxRate = Math.min(1, Math.max(0, remoteTaxRate));
-          }
-          stateSavedAt = remote.updatedAt || stateSavedAt;
+        applyRemotePortfolio(remote);
+        if (settingsOverride) {
+          appSettings = settingsOverride;
           persist({sync: false});
+          cloudReady = true;
+          await pushPortfolio();
           render();
           renderTrades();
+          updateRefreshCount();
+        } else {
+          setSyncStatus("Loaded the latest cloud copy.", "positive");
         }
-        setSyncStatus("Loaded the latest cloud copy.", "positive");
       }
     } else {
+      if (settingsOverride) {
+        appSettings = settingsOverride;
+        persist({sync: false});
+      }
       cloudReady = true;
       await pushPortfolio();
     }
     cloudReady = true;
   } catch (error) {
     cloudReady = false;
+    if (settingsOverride) {
+      appSettings = settingsOverride;
+      persist({sync: false});
+      render();
+      renderTrades();
+      updateRefreshCount();
+    }
     setSyncStatus(`Using this device only: ${error.message}`, "negative");
   }
+}
+
+function initializeCloudSync(options = {}) {
+  if (cloudSyncPromise) {
+    if (options.settingsOverride) return cloudSyncPromise.then(() => initializeCloudSync(options));
+    return cloudSyncPromise;
+  }
+  cloudSyncPromise = synchronizeCloud(options).finally(() => { cloudSyncPromise = null; });
+  return cloudSyncPromise;
 }
 
 function refreshUsage() {
@@ -873,7 +933,7 @@ $("settings").onclick = () => {
 };
 $("syncNow").onclick = async () => {
   if (!getSyncKey()) return $("settings").onclick();
-  try { await pushPortfolio(); } catch (error) { setSyncStatus(`Sync failed: ${error.message}`, "negative"); $("settingsModal").classList.add("open"); }
+  try { await initializeCloudSync(); } catch (error) { setSyncStatus(`Sync failed: ${error.message}`, "negative"); $("settingsModal").classList.add("open"); }
 };
 $("closeSettings").onclick = () => $("settingsModal").classList.remove("open");
 $("settingsModal").addEventListener("click", event => { if (event.target === $("settingsModal")) $("settingsModal").classList.remove("open"); });
@@ -888,10 +948,9 @@ $("saveSettings").onclick = async () => {
   if (!Number.isFinite(taxPercent) || taxPercent < 0 || taxPercent > 100) return alert("Estimated tax rate must be from 0 to 100.");
   localStorage.setItem("harvesterQuoteApi", url);
   if (key) localStorage.setItem("harvesterSyncKey", key); else localStorage.removeItem("harvesterSyncKey");
-  appSettings = {dailyRefreshLimit: dailyLimit, taxRate: taxPercent / 100};
-  persist({sync: false});
+  const desiredSettings = {dailyRefreshLimit: dailyLimit, taxRate: taxPercent / 100};
   cloudReady = false;
-  await initializeCloudSync();
+  await initializeCloudSync({settingsOverride: desiredSettings});
   updateRefreshCount();
   render();
   renderTrades();
@@ -905,3 +964,12 @@ renderTrades();
 resetTradeForm();
 updateRefreshCount();
 initializeCloudSync();
+
+async function syncWhenActive() {
+  if (!getSyncKey() || localDirty || cloudSyncPromise) return;
+  await initializeCloudSync();
+}
+window.addEventListener("focus", () => syncWhenActive().catch(() => {}));
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") syncWhenActive().catch(() => {});
+});
