@@ -251,7 +251,7 @@ function render() {
     totalProfitAmount += calculated.profit;
     totalHarvestAmount += calculated.harvestCash;
     $("rows").insertAdjacentHTML("beforeend", `<tr>
-      <td><div class="symbol-cell">${signalLights(calculated)}<span class="stock-symbol">${escapeHtml(stock.symbol)}</span></div></td>
+      <td><div class="symbol-cell">${signalLights(calculated)}<span class="stock-symbol" title="${escapeHtml(stock.symbol)}">${escapeHtml(stock.symbol)}</span></div></td>
       <td>${stockInput(stock, "current", stock.current.toFixed(2))}</td>
       <td>${stockInput(stock, "buyPrice", averagePrice.toFixed(2), {readonly: loggedBasis})}</td>
       <td>${loggedBasis ? money(displayedInvested) : stockInput(stock, "invested", displayedInvested.toFixed(2))}</td>
@@ -898,11 +898,13 @@ async function refreshPrices() {
     recordRefresh();
     persist();
     render();
-    const quotaText = data.quota && Number.isFinite(Number(data.quota.creditsLeft)) ? ` Provider credits left now: ${data.quota.creditsLeft}.` : "";
+    const creditsLeft = data.quota && Number.isFinite(Number(data.quota.creditsLeft)) ? Number(data.quota.creditsLeft) : null;
+    const quotaText = creditsLeft === null ? "" : ` Market-data credits remaining: ${creditsLeft}.`;
     const failureCount = symbols.length - completed;
     const time = new Date().toLocaleString([], {dateStyle: "medium", timeStyle: "short"});
     localStorage.setItem("harvesterLastPriceUpdate", time);
-    setStatus(failureCount ? `Updated ${completed} of ${symbols.length} stocks. ${failureCount} reached a provider/data limit.${quotaText}` : `Updated all ${completed} stocks at ${time}.${quotaText}`, failureCount ? "bad" : "good");
+    const partialReason = creditsLeft === 0 ? "because the market-data credits ran out" : "because the market-data service did not return new data";
+    setStatus(failureCount ? `Updated ${completed} stocks. The other ${failureCount} kept their previous prices ${partialReason}.${quotaText}` : `Updated all ${completed} stocks at ${time}.${quotaText}`, failureCount ? "bad" : "good");
   } catch (error) {
     setStatus(`Refresh failed: ${error.message}. Your saved prices were not removed.`, "bad");
   } finally {
