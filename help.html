@@ -82,6 +82,7 @@
       <dl>
         <dt>Set Goal for All</dt><dd>Changes the growth goal for every tracked stock at once.</dd>
         <dt>Import Data</dt><dd>Accepts Robinhood CSV reports and Harvester Turtle JSON backups. CSV import adds Buy, Sell, and positive ACH deposit rows, adds missing stock symbols, and skips activity already imported. If a report contains a sale but not its earlier purchase, you can add the missing purchase afterward; existing incomplete history will not block new buys. Unsupported rows such as dividends, interest, fees, options, and stock receipts are reported instead of being misclassified.</dd>
+        <dt>Replace All Logs from Robinhood CSV</dt><dd>Creates and downloads a recovery backup, removes every existing log including app-generated opening balances and pending limits, clears the old manual cost values, and imports the selected Robinhood report as the new clean history. It keeps the stock list, current prices, goals, and app settings.</dd>
         <dt>Backup Export / Import</dt><dd>Downloads or restores the complete Harvester Turtle data set: stocks, logs, deposits, limits, and settings. Export never deletes app data. Backup import keeps a recovery copy first.</dd>
         <dt>Sync Now</dt><dd>Checks Cloudflare for newer changes, then safely loads or saves the latest copy. Stocks, deletions, logs, and app settings sync between devices using the same private key.</dd>
       </dl>

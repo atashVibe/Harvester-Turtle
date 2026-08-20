@@ -83,6 +83,7 @@ function loadState() {
         trades: current.trades.map(normalizeTrade).filter(isValidTrade),
         savedAt: String(current.savedAt || ""),
         dirty: current.dirty === true,
+        needsOpeningMigration: false,
       };
     }
   } catch {}
@@ -100,7 +101,7 @@ function loadState() {
     const legacyTrades = JSON.parse(localStorage.getItem("harvesterTradesV1"));
     if (Array.isArray(legacyTrades)) trades = legacyTrades.map(normalizeTrade).filter(isValidTrade);
   } catch {}
-  return {stocks, trades, savedAt: "", dirty: false};
+  return {stocks, trades, savedAt: "", dirty: false, needsOpeningMigration: true};
 }
 
 function migrateOpeningPositions(stocks, trades) {
@@ -128,7 +129,7 @@ backupBeforeMigration();
 let appSettings = loadAppSettings();
 const loaded = loadState();
 let stocks = loaded.stocks;
-let trades = migrateOpeningPositions(stocks, loaded.trades);
+let trades = loaded.needsOpeningMigration ? migrateOpeningPositions(stocks, loaded.trades) : loaded.trades;
 let stateSavedAt = loaded.savedAt;
 let localDirty = loaded.dirty;
 let cloudReady = false;
@@ -471,16 +472,6 @@ function loadTradeIntoForm(entry, {fill = false} = {}) {
   setTradeMessage(fill ? "Review the actual fill price and time, then save." : "Editing this log.");
   tradeForm.scrollIntoView({behavior: "smooth", block: "start"});
 }
-function ensureOpeningForSymbol(symbol, baseTrades) {
-  if (baseTrades.some(item => item.type === "buy" && item.symbol === symbol && item.status === "executed")) return baseTrades;
-  const stock = stocks.find(item => item.symbol === symbol);
-  if (!stock || stock.invested <= 0 || stock.buyPrice <= 0) return baseTrades;
-  return [normalizeTrade({
-    id: `opening-${stock.id}`, type: "buy", symbol, shares: stock.invested / stock.buyPrice,
-    pricePerShare: stock.buyPrice, amount: stock.invested, tradedAt: "2000-01-01T00:00:00.000Z",
-    createdAt: new Date().toISOString(), source: "opening", note: "Opening position migrated from the existing portfolio",
-  }), ...baseTrades];
-}
 function renderTrades() {
   const ledger = currentLedger();
   const byId = new Map(ledger.entries.map(entry => [entry.id, entry]));
@@ -555,7 +546,6 @@ tradeForm.addEventListener("submit", event => {
   });
   if (!isValidTrade(candidate)) return setTradeMessage(isDeposit ? "Enter a positive deposit amount and valid date." : "Choose a stock and enter positive shares, price, and a valid date.");
   let nextTrades = existing ? trades.map(item => item.id === existing.id ? candidate : item) : [...trades, candidate];
-  if (!isDeposit && candidate.status === "executed") nextTrades = ensureOpeningForSymbol(candidate.symbol, nextTrades);
   const currentLedger = calculateLedger(trades, appSettings.taxRate);
   const nextLedger = calculateLedger(nextTrades, appSettings.taxRate);
   if (nextLedger.summary.unmatchedShares > currentLedger.summary.unmatchedShares + 1e-8) {
@@ -679,6 +669,39 @@ async function importRobinhoodFile(file) {
   alert(`Imported ${additions.length} new log${additions.length === 1 ? "" : "s"}.${duplicateCount ? ` Skipped ${duplicateCount} duplicate${duplicateCount === 1 ? "" : "s"}.` : ""}${unsupported ? ` Unsupported activity left unchanged: ${unsupported}.` : ""}`);
 }
 
+async function replaceLogsFromRobinhood(file) {
+  const parsed = parseRobinhoodCsv(await file.text());
+  const cleanTrades = parsed.entries.map(normalizeTrade).filter(isValidTrade);
+  if (!cleanTrades.length) throw new Error("No supported Buy, Sell, or positive ACH deposit rows were found in this Robinhood CSV.");
+  const symbolsToAdd = [...new Set(cleanTrades.filter(entry => entry.type !== "deposit").map(entry => entry.symbol))]
+    .filter(symbol => !stocks.some(stock => stock.symbol === symbol))
+    .sort((left, right) => left.localeCompare(right));
+  const unmatchedWarning = calculateLedger(cleanTrades, appSettings.taxRate).hasUnmatchedSales
+    ? "\n\nThe report contains sales without their earlier purchases. Those rows will be kept, but their realized profit/loss will remain incomplete until an older report is imported."
+    : "";
+  const skipped = [];
+  if (parsed.unsupportedRows) skipped.push(`${parsed.unsupportedRows} unsupported row${parsed.unsupportedRows === 1 ? "" : "s"}`);
+  if (parsed.invalidRows) skipped.push(`${parsed.invalidRows} invalid row${parsed.invalidRows === 1 ? "" : "s"}`);
+  const skippedText = skipped.length ? `\n\n${skipped.join(" and ")} will not be imported.` : "";
+  if (!confirm(`Replace ALL current logs with ${cleanTrades.length} supported rows from this Robinhood CSV?\n\nThis removes generated opening balances, manual logs, deposits, and pending limits. Your stock list, prices, goals, and settings will stay. A recovery backup will be downloaded and saved on this device.${skippedText}${unmatchedWarning}`)) return;
+
+  const recovery = {version: 4, exportedAt: new Date().toISOString(), stocks, trades, preferences: appSettings};
+  localStorage.setItem(`harvesterCleanImportBackup-${Date.now()}`, JSON.stringify(recovery));
+  downloadFile(JSON.stringify(recovery, null, 2), `harvester-turtle-before-clean-import-${localDay()}.json`, "application/json");
+  stocks.forEach(stock => {
+    stock.buyPrice = 0;
+    stock.invested = 0;
+  });
+  symbolsToAdd.forEach(symbol => stocks.push(normalizeStockState({symbol, current: 0, buyPrice: 0, invested: 0, growthGoal: .03, harvestRate: .20, minimumHarvest: 1, previousClose: 0})));
+  trades = cleanTrades;
+  persist();
+  render();
+  renderTrades();
+  resetTradeForm();
+  const unsupported = Object.entries(parsed.unsupportedCodes).map(([code, count]) => `${code} ${count}`).join(", ");
+  alert(`Clean import complete: ${cleanTrades.length} Robinhood log${cleanTrades.length === 1 ? "" : "s"} replaced all previous logs.${unsupported ? ` Unsupported activity was left out: ${unsupported}.` : ""}`);
+}
+
 $("exportData").onclick = () => {
   const backup = {version: 4, exportedAt: new Date().toISOString(), stocks, trades, preferences: appSettings};
   downloadFile(JSON.stringify(backup, null, 2), `harvester-turtle-backup-${localDay()}.json`, "application/json");
@@ -694,7 +717,7 @@ async function importBackupFile(file) {
   if (!confirm("Replace the current portfolio and logs with this backup? A recovery copy will be kept on this device.")) return;
   localStorage.setItem(`harvesterImportBackup-${Date.now()}`, JSON.stringify({version: 4, savedAt: stateSavedAt, stocks, trades, preferences: appSettings}));
   stocks = cleanStocks;
-  trades = migrateOpeningPositions(cleanStocks, cleanTrades);
+  trades = cleanTrades;
   if (data.preferences) {
     appSettings.dailyRefreshLimit = Math.min(100, Math.max(1, Number(data.preferences.dailyRefreshLimit) || appSettings.dailyRefreshLimit));
     const importedTaxRate = Number(data.preferences.taxRate);
@@ -715,6 +738,18 @@ $("importData").onchange = async event => {
   } catch (error) {
     const fallback = isCsv ? "That file is not a valid Robinhood activity CSV." : "That JSON file is not a valid Harvester Turtle backup.";
     alert(error && error.message ? error.message : fallback);
+  } finally {
+    event.target.value = "";
+  }
+};
+
+$("replaceRobinhoodLogs").onchange = async event => {
+  const file = event.target.files && event.target.files[0];
+  if (!file) return;
+  try {
+    await replaceLogsFromRobinhood(file);
+  } catch (error) {
+    alert(error && error.message ? error.message : "That file is not a valid Robinhood activity CSV.");
   } finally {
     event.target.value = "";
   }
@@ -762,7 +797,7 @@ function applyRemotePortfolio(remote) {
   const remoteStocks = remote.stocks.map(normalizeStockState).filter(stock => stock.symbol);
   const remoteTrades = Array.isArray(remote.trades) ? remote.trades.map(normalizeTrade).filter(isValidTrade) : [];
   stocks = remoteStocks;
-  trades = migrateOpeningPositions(remoteStocks, remoteTrades);
+  trades = remoteTrades;
   if (remote.preferences) {
     appSettings.dailyRefreshLimit = Math.min(100, Math.max(1, Number(remote.preferences.dailyRefreshLimit) || appSettings.dailyRefreshLimit));
     const remoteTaxRate = Number(remote.preferences.taxRate);
