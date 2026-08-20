@@ -28,7 +28,7 @@ Existing browser data is migrated automatically. Before migration, the previous 
 
 ## Price refresh and limits
 
-Prices never refresh automatically. The top **Refresh** button uses a configurable local daily allowance and displays the remaining refresh actions.
+Prices never refresh automatically. The top **Refresh Prices** button uses a configurable daily price-update limit and displays the remaining price updates. Reloading the webpage is separate and does not use that limit.
 
 The Worker prefers one Twelve Data credit per symbol:
 

@@ -13,7 +13,7 @@
   <link rel="icon" type="image/png" href="harvester-turtle-icon.png">
   <link rel="apple-touch-icon" href="harvester-turtle-icon.png">
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="stylesheet" href="styles.css?v=20260820-3">
+  <link rel="stylesheet" href="styles.css?v=20260820-4">
 </head>
 <body>
 <main class="app">
@@ -21,8 +21,8 @@
     <h1 class="app-title"><img class="app-logo" src="harvester-turtle-icon.png" alt="">Harvester Turtle</h1>
     <div class="header-actions">
       <button class="primary top-action" id="openTradeLog">Log</button>
-      <button class="top-action" id="refreshPrices">Refresh</button>
-      <span class="refresh-count" id="refreshRemaining" aria-live="polite">— left today</span>
+      <button class="top-action" id="refreshPrices">Refresh Prices</button>
+      <span class="refresh-count" id="refreshRemaining" aria-live="polite">— price updates left today</span>
       <div class="menu-wrap">
         <button class="menu-toggle" id="menuToggle" aria-label="Open menu" aria-controls="appMenu" aria-expanded="false">
           <span aria-hidden="true"></span><span aria-hidden="true"></span><span aria-hidden="true"></span>
@@ -42,7 +42,7 @@
     </div>
   </header>
 
-  <div id="priceStatus" class="status">Prices change only when you press Refresh.</div>
+  <div id="priceStatus" class="status">Prices change only when you press Refresh Prices. Reloading the page does not use a price update.</div>
 
   <section class="summary" aria-label="Portfolio summary">
     <div class="metric"><small>Total Invested ($)</small><strong id="totalInvested">0.00</strong></div>
@@ -167,7 +167,7 @@
     <label for="syncKey">Private Sync Key</label>
     <input id="syncKey" type="password" autocomplete="current-password" placeholder="Your private sync key">
     <div class="settings-grid">
-      <label>Daily refresh allowance
+      <label>Daily price-update limit
         <input id="dailyRefreshLimit" type="number" min="1" max="100" step="1">
       </label>
       <label>Estimated tax rate (%)
@@ -179,9 +179,9 @@
   </div>
 </div>
 
-<script src="calculator.js?v=20260820-3"></script>
-<script src="trade-calculator.js?v=20260820-3"></script>
-<script src="robinhood-csv.js?v=20260820-3"></script>
-<script src="app.js?v=20260820-3"></script>
+<script src="calculator.js?v=20260820-4"></script>
+<script src="trade-calculator.js?v=20260820-4"></script>
+<script src="robinhood-csv.js?v=20260820-4"></script>
+<script src="app.js?v=20260820-4"></script>
 </body>
 </html>

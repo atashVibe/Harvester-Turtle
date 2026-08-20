@@ -855,7 +855,7 @@ function refreshUsage() {
 function updateRefreshCount() {
   const usage = refreshUsage();
   const remaining = Math.max(0, appSettings.dailyRefreshLimit - usage.used);
-  $("refreshRemaining").textContent = `${remaining} of ${appSettings.dailyRefreshLimit} left today`;
+  $("refreshRemaining").textContent = `${remaining} of ${appSettings.dailyRefreshLimit} price updates left today`;
   $("refreshPrices").disabled = priceRefreshRunning || remaining <= 0;
   return remaining;
 }
@@ -944,7 +944,7 @@ $("saveSettings").onclick = async () => {
   if (key && key.length < 16) return alert("Use a private sync key at least 16 characters long, or leave it blank to use device-only saving.");
   const dailyLimit = Number($("dailyRefreshLimit").value);
   const taxPercent = Number($("taxRate").value);
-  if (!Number.isInteger(dailyLimit) || dailyLimit < 1 || dailyLimit > 100) return alert("Daily refresh allowance must be a whole number from 1 to 100.");
+  if (!Number.isInteger(dailyLimit) || dailyLimit < 1 || dailyLimit > 100) return alert("Daily price-update limit must be a whole number from 1 to 100.");
   if (!Number.isFinite(taxPercent) || taxPercent < 0 || taxPercent > 100) return alert("Estimated tax rate must be from 0 to 100.");
   localStorage.setItem("harvesterQuoteApi", url);
   if (key) localStorage.setItem("harvesterSyncKey", key); else localStorage.removeItem("harvesterSyncKey");
@@ -958,7 +958,7 @@ $("saveSettings").onclick = async () => {
 };
 
 const lastUpdate = localStorage.getItem("harvesterLastPriceUpdate");
-if (lastUpdate) setStatus(`Last refreshed: ${lastUpdate}. Prices change only when you press Refresh.`, "good");
+if (lastUpdate) setStatus(`Prices last updated: ${lastUpdate}. Reloading the page does not update prices or use the daily limit.`, "good");
 render();
 renderTrades();
 resetTradeForm();
