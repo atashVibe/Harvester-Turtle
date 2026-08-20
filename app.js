@@ -1,5 +1,5 @@
 const { calculate, normalizeStock } = HarvesterCalculator;
-const { normalizeTrade, isValidTrade, sortTrades, calculateLedger } = HarvesterTrades;
+const { normalizeTrade, isValidTrade, sortTrades, calculateLedger, formatPendingLimit } = HarvesterTrades;
 const { parseRobinhoodCsv, mergeRobinhoodEntries, buildRobinhoodCsv } = HarvesterRobinhoodCsv;
 const $ = id => document.getElementById(id);
 const clone = value => JSON.parse(JSON.stringify(value));
@@ -183,8 +183,7 @@ function stockInput(stock, key, value, {step = "0.01", max = "", readonly = fals
 function pendingLimitControl(items) {
   if (!items || !items.length) return "";
   const options = items.map(item => {
-    const code = item.type === "buy" ? "LB" : "LS";
-    const label = `${code}-$${Number(item.pricePerShare).toLocaleString(undefined, {maximumFractionDigits: 4})}-${daysAgo(item.createdAt)}d`;
+    const label = formatPendingLimit(item);
     return `<option>${escapeHtml(label)}</option>`;
   }).join("");
   return `<select class="limit-summary" aria-label="Pending limit orders">${options}</select>`;
@@ -500,7 +499,7 @@ function renderTrades() {
       sharesCell = `<span class="${pending ? "" : "sold-portion"}">${quantity(entry.shares)}</span>`;
     }
     let fifoStatus = "Cash deposit";
-    if (pending) fifoStatus = `Pending ${entry.type === "buy" ? "buy" : "sell"} • ${daysAgo(entry.createdAt)}d`;
+    if (pending) fifoStatus = `Pending ${entry.type === "buy" ? "buy" : "sell"} • ${daysAgo(entry.tradedAt)}d`;
     else if (entry.type === "sell") fifoStatus = `Cost ${money(entry.fifoCost)} • P/L ${money(entry.realizedProfitLoss)}`;
     else if (entry.type === "buy") fifoStatus = `${quantity(entry.remainingShares)} shares open`;
     const actions = [

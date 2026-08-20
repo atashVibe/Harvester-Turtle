@@ -47,7 +47,7 @@
       <h2>Pending limit orders</h2>
       <p>Check <strong>Limit order</strong> when the order has not filled. Pending limits are saved but excluded from shares and realized results.</p>
       <p>Use <strong>Mark Filled</strong> when Robinhood executes it. Review the actual fill price and time before saving.</p>
-      <p>The portfolio shows compact labels such as LB-$130-5d and LS-$135-15d. LB means limit buy; LS means limit sell.</p>
+      <p>The portfolio shows compact labels such as LB-1x$130.00-5d and LS-2x$227.50-3d. LB means limit buy; LS means limit sell. The days are counted from the order date and time entered in the log.</p>
     </section>
 
     <section class="help-card">
@@ -63,7 +63,7 @@
       <dl>
         <dt>Average Price</dt><dd>Open FIFO cost divided by open shares. If there are no logs, it uses the manually entered starting cost.</dd>
         <dt>Invested Amount</dt><dd>Open cost plus money committed to pending limit buys.</dd>
-        <dt>Pending Limits</dt><dd>A read-only list of the newest pending orders for that stock.</dd>
+        <dt>Pending Limits</dt><dd>A read-only list of pending orders for that stock, newest order date first. Each label shows order type, shares, price with two decimals, and days since the entered order date.</dd>
         <dt>High 15 / Low 15</dt><dd>The highest and lowest prices in the latest 15 daily market bars supplied by Twelve Data.</dd>
         <dt>Goal / Harvest / Min. Cash</dt><dd>Your rules for when the app shows a harvest opportunity.</dd>
       </dl>

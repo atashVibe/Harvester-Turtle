@@ -6,6 +6,7 @@ const {
   sortTrades,
   calculateHighLow,
   calculateLedger,
+  formatPendingLimit,
 } = require("./trade-calculator.js");
 
 assert.equal(calculatePricePerShare(400, 2), 200);
@@ -41,14 +42,17 @@ assert.equal(fifoAcrossLots.holdings.MSFT.averagePrice, 120);
 
 const pendingExcluded = calculateLedger([
   {id: "buy", type: "buy", symbol: "NVDA", pricePerShare: 100, shares: 2, tradedAt: "2026-02-01T10:00:00Z"},
-  {id: "limit-sell", type: "sell", symbol: "NVDA", pricePerShare: 150, shares: 1, orderKind: "limit", status: "pending", tradedAt: "2026-02-02T10:00:00Z"},
-  {id: "limit-buy", type: "buy", symbol: "NVDA", pricePerShare: 90, shares: 1, orderKind: "limit", status: "pending", tradedAt: "2026-02-02T11:00:00Z"},
+  {id: "limit-sell", type: "sell", symbol: "NVDA", pricePerShare: 150, shares: 1, orderKind: "limit", status: "pending", tradedAt: "2026-02-02T10:00:00Z", createdAt: "2026-02-10T10:00:00Z"},
+  {id: "limit-buy", type: "buy", symbol: "NVDA", pricePerShare: 90, shares: 1, orderKind: "limit", status: "pending", tradedAt: "2026-02-02T11:00:00Z", createdAt: "2026-02-03T10:00:00Z"},
 ]);
 assert.equal(pendingExcluded.summary.totalSold, 0);
 assert.equal(pendingExcluded.summary.realizedProfitLoss, 0);
 assert.equal(pendingExcluded.summary.committedBuyAmount, 90);
 assert.equal(pendingExcluded.holdings.NVDA.shares, 2);
 assert.equal(pendingExcluded.pendingBySymbol.NVDA.length, 2);
+assert.deepEqual(pendingExcluded.pendingBySymbol.NVDA.map(item => item.id), ["limit-buy", "limit-sell"]);
+assert.equal(formatPendingLimit({type: "sell", symbol: "NVDA", pricePerShare: 227.5, shares: 2, orderKind: "limit", status: "pending", tradedAt: "2026-02-02T10:00:00Z"}, "2026-02-05T10:00:00Z"), "LS-2x$227.50-3d");
+assert.equal(formatPendingLimit({type: "buy", symbol: "CBRS", pricePerShare: 222, shares: 0.090088, orderKind: "limit", status: "pending", tradedAt: "2026-02-04T10:00:00Z"}, "2026-02-05T10:00:00Z"), "LB-0.090088x$222.00-1d");
 
 const taxAndDeposits = calculateLedger([
   {id: "deposit", type: "deposit", amount: 1000, note: "First transfer", tradedAt: "2026-03-01T09:00:00Z"},

@@ -96,6 +96,17 @@
     };
   }
 
+  function formatPendingLimit(trade, now = Date.now()) {
+    const item = normalizeTrade(trade);
+    const code = item.type === "buy" ? "LB" : "LS";
+    const shares = Number(item.shares.toFixed(6)).toString();
+    const price = item.pricePerShare.toFixed(2);
+    const orderTime = new Date(item.tradedAt).getTime();
+    const currentTime = new Date(now).getTime();
+    const ageInDays = Number.isFinite(orderTime) && Number.isFinite(currentTime) ? Math.max(0, Math.floor((currentTime - orderTime) / 86400000)) : 0;
+    return `${code}-${shares}x$${price}-${ageInDays}d`;
+  }
+
   function calculateLedger(trades, taxRate = 0.30) {
     const entries = (Array.isArray(trades) ? trades : []).map((trade, originalIndex) => ({
       ...normalizeTrade(trade),
@@ -186,7 +197,7 @@
       openShares += shares;
       openCost += cost;
     });
-    Object.values(pendingBySymbol).forEach(items => items.sort((left, right) => new Date(right.createdAt) - new Date(left.createdAt)));
+    Object.values(pendingBySymbol).forEach(items => items.sort((left, right) => new Date(right.tradedAt) - new Date(left.tradedAt) || new Date(right.createdAt) - new Date(left.createdAt)));
 
     const realizedProfitLoss = realizedProfit - realizedLoss;
     const unmatchedShares = entries.reduce((sum, entry) => sum + entry.unmatchedShares, 0);
@@ -218,5 +229,5 @@
     };
   }
 
-  return { calculatePricePerShare, normalizeTrade, isValidTrade, sortTrades, calculateHighLow, calculateLedger };
+  return { calculatePricePerShare, normalizeTrade, isValidTrade, sortTrades, calculateHighLow, calculateLedger, formatPendingLimit };
 });
