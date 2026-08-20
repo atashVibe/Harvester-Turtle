@@ -489,6 +489,7 @@ function renderTrades() {
     } else if (entry.type === "sell") {
       sharesCell = `<span class="${pending ? "" : "sold-portion"}">${quantity(entry.shares)}</span>`;
     }
+    const displayedDate = entry.source === "opening" ? "Opening balance" : new Date(entry.tradedAt).toLocaleString([], {dateStyle: "medium", timeStyle: "short"});
     let fifoStatus = "Cash deposit";
     if (pending) fifoStatus = `Pending ${entry.type === "buy" ? "buy" : "sell"} • ${daysAgo(entry.tradedAt)}d`;
     else if (entry.type === "sell") fifoStatus = `Cost ${money(entry.fifoCost)} • P/L ${money(entry.realizedProfitLoss)}`;
@@ -499,7 +500,7 @@ function renderTrades() {
       `<button class="danger" data-delete-trade="${escapeHtml(entry.id)}">Delete</button>`,
     ].join("");
     $("tradeRows").insertAdjacentHTML("beforeend", `<tr>
-      <td>${entry.source === "opening" ? "Opening balance" : escapeHtml(new Date(entry.tradedAt).toLocaleString([], {dateStyle: "medium", timeStyle: "short"}))}</td>
+      <td title="${escapeHtml(displayedDate)}">${escapeHtml(displayedDate)}</td>
       <td>${entry.symbol ? escapeHtml(entry.symbol) : "—"}</td>
       <td><span class="trade-action ${entry.type} ${pending ? "pending" : ""}">${typeLabel}</span></td>
       <td>${sharesCell}</td><td>${entry.type === "deposit" ? "—" : money(entry.pricePerShare)}</td><td>${money(entry.amount)}</td>
