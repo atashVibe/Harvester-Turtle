@@ -3,12 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Help for the Harvester Turtle portfolio calculator.">
+  <meta name="description" content="Help for Harvester Turtle.">
   <meta name="theme-color" content="#102a43">
-  <meta property="og:title" content="Harvester Turtle Help">
-  <meta property="og:description" content="Learn how the Harvester Turtle portfolio calculator works.">
-  <meta property="og:image" content="https://atashvibe.github.io/Harvester-Turtle/harvester-turtle-icon.png">
-  <meta name="twitter:card" content="summary">
   <title>Help — Harvester Turtle</title>
   <link rel="icon" type="image/png" href="harvester-turtle-icon.png">
   <link rel="apple-touch-icon" href="harvester-turtle-icon.png">
@@ -21,116 +17,80 @@
     <a class="back-link" href="index.html">← Back to Harvester Turtle</a>
     <div class="help-brand"><img src="harvester-turtle-icon.png" alt=""><span>Harvester Turtle</span></div>
     <h1>Help</h1>
-    <p class="help-intro">Harvester Turtle follows your stock positions, calculates profit, and shows when a position meets your harvest rules. It does not place trades or connect to your brokerage account.</p>
+    <p class="help-intro">Harvester Turtle keeps a simple, phone-friendly record of your positions, trades, limits, and deposits. It does not place orders or connect to your brokerage.</p>
   </header>
 
   <div class="help-grid">
     <section class="help-card wide">
       <h2>Quick start</h2>
       <ol>
-        <li>Open the three-line menu and choose <strong>Add Stock</strong>.</li>
-        <li>Enter the stock symbol when asked, then enter its buy price and the amount invested.</li>
-        <li>Check the current price, growth goal, harvest percentage, and minimum cash.</li>
-        <li>Read the colored lights, Action, Suggestion, and Harvest Cash results.</li>
+        <li>Use the three-line menu to add the stocks you follow.</li>
+        <li>Press <strong>Log</strong> to record a buy, sale, deposit, or pending limit order.</li>
+        <li>Press <strong>Refresh</strong> when you want new prices. Nothing refreshes automatically.</li>
+        <li>Export a backup periodically, especially before clearing browser data or changing phones.</li>
       </ol>
-      <p><strong>Sorting:</strong> The table starts with stock symbols in alphabetical order from A to Z. Click any column heading to sort by that column. Click the same heading again to reverse the order. The arrow on its own line below the heading shows the current direction. Sorting changes only what you see; it does not change or resave your portfolio data.</p>
-      <p>The table places the most-used columns first: Stock, Current Price, Bought Price, Invested Amount, Shares, Harvest Price, Harvest Cash, and Growth Goal. Current Price, Bought Price, Invested Amount, Harvest Price, Harvest Cash, Growth Goal, and Previous Close use clear two-line headings. Centered headings, tighter spacing, matching 11-pixel text, and a small space between the signal lights and stock symbol allow more information to fit neatly on one screen. Stock symbols remain bold.</p>
-      <p><strong>Moving across the table:</strong> On a desktop, use the left/right buttons or drag the “Scroll columns” slider. The controls freeze at the top while the table is on screen, with the frozen headings directly below them. You can also hold <strong>Shift</strong> while turning the mouse wheel. On phones and other touchscreens, the desktop controls are hidden because you can swipe the table sideways.</p>
-      <p>The Scroll columns bar and frozen headings always stay behind the main menu and the Price &amp; Sync Settings window, so they never cover menu choices or settings fields.</p>
-      <p><strong>Moving down the page:</strong> Scroll the page normally—there is no second vertical scrollbar inside the table. After the original headings move off the top of the screen, a frozen heading row appears and stays visible until you reach the end of the table. It remains aligned when you scroll horizontally.</p>
-      <p><strong>Moving between entry fields:</strong> On a desktop, press <strong>Tab</strong> to move to the next editable field on the right, or <strong>Shift + Tab</strong> to move backward. On a phone, tap the keyboard’s <strong>Next</strong> or Enter button after entering a value. The app saves the value, moves to the next editable field on the right, and selects its number so it is ready to replace.</p>
     </section>
 
     <section class="help-card">
-      <h2>The colored lights</h2>
-      <p>The three signal lights appear immediately to the left of each stock symbol.</p>
-      <div class="light-key"><span class="signal red active" aria-hidden="true"></span><span><strong>Red — Strong Buy:</strong> the Suggestion column says Strong Buy.</span></div>
-      <div class="light-key"><span class="signal yellow active" aria-hidden="true"></span><span><strong>Yellow — Buy More:</strong> the Suggestion column says Buy More.</span></div>
-      <div class="light-key"><span class="signal green active" aria-hidden="true"></span><span><strong>Green — Harvest:</strong> the Action column says Harvest.</span></div>
-      <p>A gray light means that signal is not active. More than one light can be active when the Action and Suggestion results are different.</p>
+      <h2>Trades and FIFO</h2>
+      <p>For an executed trade, choose the stock, enter shares and the execution price, then confirm the calculated total.</p>
+      <p>Sales use FIFO: the oldest available purchase shares are sold first. A partly sold buy shows the sold portion in red with a line through it and keeps the remaining portion open.</p>
+      <p>An Opening row is the cost basis migrated from an older Harvester Turtle portfolio.</p>
     </section>
 
     <section class="help-card">
-      <h2>Summary cards</h2>
-      <dl>
-        <dt>Total Invested</dt>
-        <dd>The total amount you entered as invested in all stocks.</dd>
-        <dt>Current Value</dt>
-        <dd>The estimated value of all calculated shares at their current prices. It is green when it is higher than Total Invested; otherwise it is red.</dd>
-        <dt>Total Profit</dt>
-        <dd>Current Value minus Total Invested. A negative number is a loss.</dd>
-        <dt>Harvest Available</dt>
-        <dd>The total cash the rules currently allow you to harvest.</dd>
-      </dl>
+      <h2>Deposits</h2>
+      <p>Choose <strong>Deposit</strong> in Logs, enter the cash amount, date/time, and an optional note. Deposits update Total Deposited but never change stock profit/loss, FIFO, or estimated tax.</p>
+    </section>
+
+    <section class="help-card">
+      <h2>Pending limit orders</h2>
+      <p>Check <strong>Limit order</strong> when the order has not filled. Pending limits are saved but excluded from shares and realized results.</p>
+      <p>Use <strong>Mark Filled</strong> when Robinhood executes it. Review the actual fill price and time before saving.</p>
+      <p>The portfolio shows compact labels such as LB-$130-5d and LS-$135-15d. LB means limit buy; LS means limit sell.</p>
+    </section>
+
+    <section class="help-card">
+      <h2>Profit, tax, and Final Harvest</h2>
+      <p>Realized Profit/Loss includes executed sales only.</p>
+      <p class="help-formula"><strong>Estimated Tax</strong> = positive net realized gain × your configured rate<br>
+      <strong>Final Harvest</strong> = realized profit − realized loss − estimated tax</p>
+      <p>The default tax estimate is 30%. Change it in Price &amp; App Settings. It is a planning estimate, not tax advice.</p>
     </section>
 
     <section class="help-card wide">
-      <h2>What you enter</h2>
+      <h2>Portfolio columns</h2>
       <dl>
-        <dt>Stock</dt>
-        <dd>The market symbol, such as AAPL or MRVL. You enter it when adding the row, and it is read-only afterward.</dd>
-        <dt>Current</dt>
-        <dd>The latest price received from the price service. You can also enter it manually. Money fields always use two decimal places, with the dollar sign shown in the column header.</dd>
-        <dt>Buy Price</dt>
-        <dd>Your average price paid for one share.</dd>
-        <dt>Invested</dt>
-        <dd>The total amount of money invested in that stock.</dd>
-        <dt>Growth Goal</dt>
-        <dd>The minimum profit target entered as a percentage from 0.00 to 100.00. For example, enter 3.00 for a 3% goal.</dd>
-        <dt>Harvest %</dt>
-        <dd>The part of eligible profit to harvest, entered as a percentage from 0.00 to 100.00. For example, enter 20.00 to harvest 20% of eligible profit.</dd>
-        <dt>Min. Cash</dt>
-        <dd>The smallest harvest amount you want the calculation to produce.</dd>
-        <dt>Previous Close</dt>
-        <dd>The stock's closing price from the previous regular market day.</dd>
+        <dt>Average Price</dt><dd>Open FIFO cost divided by open shares. If there are no logs, it uses the manually entered starting cost.</dd>
+        <dt>Invested Amount</dt><dd>Open cost plus money committed to pending limit buys.</dd>
+        <dt>Pending Limits</dt><dd>A read-only list of the newest pending orders for that stock.</dd>
+        <dt>High 15 / Low 15</dt><dd>The highest and lowest prices in the latest 15 daily market bars supplied by Twelve Data.</dd>
+        <dt>Goal / Harvest / Min. Cash</dt><dd>Your rules for when the app shows a harvest opportunity.</dd>
       </dl>
-    </section>
-
-    <section class="help-card wide">
-      <h2>How the harvest calculation works</h2>
-      <p class="help-formula"><strong>Shares</strong> = Invested Amount ÷ Bought Price<br>
-      <strong>Current Value</strong> = Shares × Current Price<br>
-      <strong>Profit</strong> = Current Value − Invested Amount<br>
-      <strong>Harvested Price</strong> = Bought Price × (1 + Growth Goal)<br>
-      <strong>Potential Harvest Cash</strong> = Profit × Harvest %</p>
-      <p>The Shares column displays exactly two decimal places for readability. Calculations still use the complete share value behind the scenes.</p>
-      <p>Harvested Price depends only on Bought Price and Growth Goal. Changing Invested Amount does not change the Harvested Price target.</p>
-      <p>Invested Amount determines how many shares you own, so it affects your actual Profit and Potential Harvest Cash. Action changes to <strong>Harvest</strong> only when Current Price reaches the Harvested Price and Potential Harvest Cash reaches the user-entered Min. Cash. Until both conditions are met, Harvest Cash is not shown.</p>
+      <p class="help-formula"><strong>Harvest Price</strong> = Average Price × (1 + Growth Goal). Harvest Cash appears only after the price goal is reached and the result meets Min. Cash.</p>
+      <p>Tap or click a heading to sort the rows. On desktop, use the left/right buttons, slider, or Shift + mouse wheel to move across columns. On a phone, swipe the table sideways. Tab, Shift+Tab, and the phone keyboard's Next action move through editable fields.</p>
     </section>
 
     <section class="help-card">
-      <h2>Updating prices</h2>
-      <p>Prices update once when the page opens. To update them again, refresh or reload the page. There is no automatic timer running in the background.</p>
-      <p>A progress bar appears immediately and advances each time an individual stock price arrives. The app requests up to eight symbols together, which is the fastest rate allowed by the free price plan.</p>
-      <p>If you have more than eight symbols, the bar shows a countdown until the free price allowance resets at the start of the next clock minute. For example, 20 symbols require three groups. The waiting time depends on when each group finishes instead of always waiting a full 65 seconds.</p>
-      <p>If the current minute's allowance was already used, the bar says the price-service limit was reached and retries the same group after the next reset. If the retry is also rejected, or if the daily allowance is exhausted, the app stops, keeps the existing prices, and shows a clear message instead of repeating a misleading 0-of-total countdown.</p>
-      <p>After a successful update, the message at the top shows <strong>Updated on:</strong> followed by the time.</p>
-      <p>The free price plan processes large portfolios in groups. Market prices may be delayed or differ from a brokerage app because data sources and trading sessions can be different.</p>
-      <p>Use <strong>Price Settings</strong> only if the Cloudflare Worker address needs to be changed.</p>
+      <h2>Manual refresh</h2>
+      <p>The number beside Refresh is your configurable daily allowance. A refresh is counted only when at least one stock updates successfully.</p>
+      <p>If Twelve Data reports its remaining credits, the status message shows them too. On a free plan, a large portfolio may update partly; the next refresh rotates the order so the same stocks are not always skipped.</p>
     </section>
 
     <section class="help-card">
       <h2>Menu options</h2>
       <dl>
-        <dt>Add Stock</dt>
-        <dd>Asks for a stock symbol, then adds a new row. The symbol is fixed after the row is created.</dd>
-        <dt>Export</dt>
-        <dd>Downloads a backup of your portfolio data.</dd>
-        <dt>Import</dt>
-        <dd>Restores portfolio data from a Harvester Turtle export file.</dd>
-        <dt>Price Settings</dt>
-        <dd>Changes the Cloudflare Worker address and the private portfolio sync key used on this device.</dd>
-        <dt>Sync Now</dt>
-        <dd>Saves the current portfolio to your protected Cloudflare database immediately.</dd>
+        <dt>Set Goal for All</dt><dd>Changes the growth goal for every tracked stock at once.</dd>
+        <dt>Export / Import</dt><dd>Downloads or restores stocks, logs, deposits, limits, and settings. Import keeps a recovery copy first.</dd>
+        <dt>Sync Now</dt><dd>Saves to Cloudflare when a private sync key is configured.</dd>
       </dl>
     </section>
 
     <section class="help-card wide">
       <h2>Saving and safety</h2>
-      <p>When cloud sync is configured, your portfolio is stored through the protected Cloudflare Worker and can load on another device using the same private sync key. Browser storage remains available as an offline backup.</p>
-      <p>Keep the private sync key secret. Export a backup before clearing browser data or making major portfolio changes.</p>
-      <p>The remove button asks for confirmation before deleting a stock row.</p>
-      <p>Harvester Turtle is an educational calculator. Its signals are based only on the formulas shown above; they are not personalized financial advice and do not guarantee a profit.</p>
+      <p>The app saves to this browser first and can optionally sync through your Cloudflare Worker. Older saved data is backed up automatically before the new log format is created.</p>
+      <p>Removing a stock keeps its logs. Deleting or editing a purchase is blocked when doing so would leave a later executed sale without enough FIFO shares.</p>
+      <p>Harvester Turtle is educational software. It is not financial or tax advice and does not guarantee a profit.</p>
     </section>
   </div>
 </main>

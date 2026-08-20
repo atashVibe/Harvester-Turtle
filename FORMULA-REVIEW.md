@@ -4,7 +4,7 @@ Scope: `Harvester Trutle.xlsx`, first worksheet only.
 
 ## Preserved formulas
 
-- Shares = invested amount / buy price
+- Shares = open FIFO shares from executed logs, or invested amount / average price for a manual starting position
 - Current value = shares × current price
 - Profit = current value − invested amount
 - Day change = (current price − previous close) / previous close
@@ -13,17 +13,17 @@ Scope: `Harvester Trutle.xlsx`, first worksheet only.
 
 ## Updated harvest rules
 
-Harvested Price is now a per-share target based only on Bought Price and Growth Goal:
+Harvest Price is a per-share target based only on Average Price and Growth Goal:
 
-`harvested price = bought price × (1 + growth goal)`
+`harvest price = average price × (1 + growth goal)`
 
-Invested Amount does not affect this price target. The same Bought Price and Growth Goal always produce the same Harvested Price.
+Invested Amount does not affect this price target. The same Average Price and Growth Goal always produce the same Harvest Price.
 
 Harvest Cash still uses the user's real position:
 
-`shares = invested amount / bought price`
+`shares = open FIFO shares` (or `invested amount / average price` before logs exist)
 
-`profit = (current price − bought price) × shares`
+`profit = (current price − average price) × shares`
 
 `potential harvest cash = profit × harvest percentage`
 

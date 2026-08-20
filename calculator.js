@@ -20,22 +20,24 @@
       growthGoal: Math.max(0, finite(stock && (stock.growthGoal ?? stock.goal), 0.03)),
       harvestRate: Math.min(1, Math.max(0, finite(stock && (stock.harvestRate ?? stock.harvest), 0.20))),
       minimumHarvest: Math.max(0, finite(stock && (stock.minimumHarvest ?? stock.min), 1)),
+      shares: stock && stock.shares !== undefined && stock.shares !== null ? Math.max(0, finite(stock.shares)) : null,
+      high15: Math.max(0, finite(stock && stock.high15)),
+      low15: Math.max(0, finite(stock && stock.low15)),
+      marketDataAt: String((stock && stock.marketDataAt) || ""),
     };
   }
 
   function calculate(stock) {
     const item = normalizeStock(stock);
     const invested = item.invested;
-    const shares = item.buyPrice > 0 ? invested / item.buyPrice : 0;
+    const shares = item.shares === null ? (item.buyPrice > 0 ? invested / item.buyPrice : 0) : item.shares;
     const averageCost = item.buyPrice;
     const currentValue = shares * item.current;
     const profit = currentValue - invested;
     const returnRate = invested > 0 ? profit / invested : 0;
     const goalPriceIncrease = averageCost * item.growthGoal;
     const harvestPrice = averageCost > 0 ? averageCost + goalPriceIncrease : 0;
-    const potentialHarvestCash = profit > 0 && item.harvestRate > 0
-      ? profit * item.harvestRate
-      : 0;
+    const potentialHarvestCash = profit > 0 && item.harvestRate > 0 ? profit * item.harvestRate : 0;
     const dayChange = item.previousClose > 0
       ? (item.current - item.previousClose) / item.previousClose
       : 0;
@@ -43,6 +45,7 @@
     const meetsMinimumCash = potentialHarvestCash >= item.minimumHarvest;
     const eligible = meetsGrowthGoal && meetsMinimumCash && item.harvestRate > 0;
     const harvestCash = eligible ? potentialHarvestCash : 0;
+    const sharesToSell = item.current > 0 ? harvestCash / item.current : 0;
 
     let suggestion = "Hold";
     if (dayChange <= -0.04) suggestion = "Strong Buy";
@@ -72,6 +75,7 @@
       eligible,
       action: eligible ? "Harvest" : "Wait",
       harvestCash,
+      sharesToSell,
       suggestion,
       buySignal,
     };

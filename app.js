@@ -1,5 +1,12 @@
 const { calculate, normalizeStock } = HarvesterCalculator;
-const { calculatePricePerShare, normalizeTrade, isValidTrade, calculateLedger } = HarvesterTrades;
+const { normalizeTrade, isValidTrade, sortTrades, calculateLedger } = HarvesterTrades;
+const $ = id => document.getElementById(id);
+const clone = value => JSON.parse(JSON.stringify(value));
+const STATE_KEY = "harvesterStateV4";
+const SETTINGS_KEY = "harvesterAppSettingsV1";
+const REFRESH_KEY = "harvesterRefreshUsageV1";
+const MIGRATION_BACKUP_KEY = "harvesterMigrationBackupV4";
+const DEFAULT_API_URL = "https://summer-river-8271.atash1317.workers.dev";
 const seed = [
   {symbol:"MRVL",current:220,buyPrice:205.57,invested:20,growthGoal:.03,harvestRate:.20,minimumHarvest:1,previousClose:210.99},
   {symbol:"NVDA",current:208.76,buyPrice:207.33,invested:34.7,growthGoal:.03,harvestRate:.20,minimumHarvest:1,previousClose:212.06},
@@ -12,533 +19,833 @@ const seed = [
   {symbol:"ASTS",current:59.18,buyPrice:59.22,invested:5.45,growthGoal:.03,harvestRate:.20,minimumHarvest:1,previousClose:61.95},
   {symbol:"SPCX",current:118.24,buyPrice:122.41,invested:20,growthGoal:.03,harvestRate:.20,minimumHarvest:1,previousClose:115.26}
 ];
-const clone=value=>JSON.parse(JSON.stringify(value));
-const storageKey="harvesterDataV2";
-const tradeStorageKey="harvesterTradesV1";
-const rows=document.getElementById("rows");
-const tableWrap=document.getElementById("tableWrap"),tableScrollControls=document.getElementById("tableScrollControls"),tableScrollPosition=document.getElementById("tableScrollPosition"),scrollTableLeft=document.getElementById("scrollTableLeft"),scrollTableRight=document.getElementById("scrollTableRight");
-function updateTableScrollControls(){
-  const maximum=Math.max(0,tableWrap.scrollWidth-tableWrap.clientWidth);
-  tableScrollControls.hidden=maximum<1;
-  tableScrollPosition.max=String(Math.ceil(maximum));
-  tableScrollPosition.value=String(Math.min(maximum,tableWrap.scrollLeft));
-  scrollTableLeft.disabled=tableWrap.scrollLeft<=0;
-  scrollTableRight.disabled=tableWrap.scrollLeft>=maximum-1;
-}
-tableScrollPosition.addEventListener("input",()=>{tableWrap.scrollLeft=Number(tableScrollPosition.value)});
-tableWrap.addEventListener("scroll",()=>{updateTableScrollControls();updateFloatingHeaderPosition()},{passive:true});
-tableWrap.addEventListener("wheel",event=>{
-  if(!event.shiftKey||!event.deltaY)return;
-  event.preventDefault();tableWrap.scrollLeft+=event.deltaY;
-},{passive:false});
-scrollTableLeft.onclick=()=>tableWrap.scrollBy({left:-Math.max(240,tableWrap.clientWidth*.7),behavior:"smooth"});
-scrollTableRight.onclick=()=>tableWrap.scrollBy({left:Math.max(240,tableWrap.clientWidth*.7),behavior:"smooth"});
-window.addEventListener("resize",()=>{updateTableScrollControls();syncFloatingTableHeader()});
-if("ResizeObserver" in window){
-  const tableScrollObserver=new ResizeObserver(()=>{updateTableScrollControls();syncFloatingTableHeader()});
-  tableScrollObserver.observe(tableWrap);
-  tableScrollObserver.observe(tableWrap.querySelector("table"));
-}
-function loadStocks(){
-  try{
-    const current=JSON.parse(localStorage.getItem(storageKey));
-    if(Array.isArray(current)&&current.length)return current.map(normalizeStock).filter(stock=>stock.symbol);
-    const legacy=JSON.parse(localStorage.getItem("harvesterData"));
-    if(Array.isArray(legacy)&&legacy.length)return legacy.map(normalizeStock).filter(stock=>stock.symbol);
-  }catch{}
-  return clone(seed).map(normalizeStock);
-}
-function loadTrades(){
-  try{
-    const saved=JSON.parse(localStorage.getItem(tradeStorageKey));
-    if(Array.isArray(saved))return saved.map(normalizeTrade).filter(isValidTrade);
-  }catch{}
-  return [];
-}
-let stocks=loadStocks();
-let trades=loadTrades();
-let cloudReady=false;
-let syncTimer=null;
-let sortKey="symbol";
-let sortDirection="asc";
-const save=()=>{
-  localStorage.setItem(storageKey,JSON.stringify(stocks));
-  localStorage.setItem(tradeStorageKey,JSON.stringify(trades));
-  if(cloudReady)scheduleCloudSave();
+
+const money = number => Number.isFinite(number) ? number.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) : "—";
+const quantity = (number, digits = 6) => Number.isFinite(number) ? number.toLocaleString(undefined, {maximumFractionDigits: digits}) : "—";
+const percent = number => Number.isFinite(number) ? `${(number * 100).toFixed(2)}%` : "—";
+const escapeHtml = text => String(text).replace(/[&<>"']/g, char => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[char]));
+const localDay = () => {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 };
-const money=n=>Number.isFinite(n)?n.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}):"—";
-const number=(n,digits=2)=>Number.isFinite(n)?n.toLocaleString(undefined,{minimumFractionDigits:digits,maximumFractionDigits:digits}):"—";
-const quantity=n=>Number.isFinite(n)?n.toLocaleString(undefined,{maximumFractionDigits:6}):"—";
-const percent=n=>Number.isFinite(n)?`${(n*100).toFixed(2)}%`:"—";
-const escapeHtml=text=>String(text).replace(/[&<>"']/g,char=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[char]));
-function pill(text){
-  let tone="";
-  if(["Harvest","Harvest Ready","Strong Harvest"].includes(text))tone="good";
-  else if(["Buy More","Maybe"].includes(text))tone="warn";
-  else if(text==="Strong Buy")tone="bad";
-  return `<span class="pill ${tone}">${escapeHtml(text||"—")}</span>`;
+const toLocalDateTimeValue = value => {
+  const date = value ? new Date(value) : new Date();
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  return local.toISOString().slice(0, 16);
+};
+const daysAgo = value => Math.max(0, Math.floor((Date.now() - new Date(value).getTime()) / 86400000));
+
+function normalizeStockState(stock) {
+  const normalized = normalizeStock(stock);
+  return {
+    ...normalized,
+    shares: undefined,
+    high15: Math.max(0, Number(stock && stock.high15) || 0),
+    low15: Math.max(0, Number(stock && stock.low15) || 0),
+    marketDataAt: String((stock && stock.marketDataAt) || ""),
+  };
 }
-function signalLights(stock){
-  const red=stock.suggestion==="Strong Buy";
-  const yellow=stock.suggestion==="Buy More";
-  const green=stock.action==="Harvest";
-  const active=[red&&"Strong Buy",yellow&&"Buy More",green&&"Harvest"].filter(Boolean);
-  const label=active.length?active.join(", "):"Hold";
-  return `<span class="signal-lights" role="img" aria-label="${label}" title="${label}">
-    <span class="signal red ${red?"active":""}"></span>
-    <span class="signal yellow ${yellow?"active":""}"></span>
-    <span class="signal green ${green?"active":""}"></span>
-  </span>`;
+
+function backupBeforeMigration() {
+  if (localStorage.getItem(MIGRATION_BACKUP_KEY)) return;
+  try {
+    const backup = {
+      createdAt: new Date().toISOString(),
+      harvesterDataV2: localStorage.getItem("harvesterDataV2"),
+      harvesterData: localStorage.getItem("harvesterData"),
+      harvesterTradesV1: localStorage.getItem("harvesterTradesV1"),
+      harvesterStateV3: localStorage.getItem("harvesterStateV3"),
+    };
+    localStorage.setItem(MIGRATION_BACKUP_KEY, JSON.stringify(backup));
+  } catch {}
 }
-function input(stock,key,value,{step="0.01",className="",min="0",max=""}={}){
-  return `<input class="${className}" data-id="${escapeHtml(stock.id)}" data-key="${key}" type="${key==="symbol"?"text":"number"}" inputmode="decimal" enterkeyhint="next" step="${step}" min="${min}" ${max?`max="${max}"`:""} value="${escapeHtml(value)}">`;
-}
-function compareStocks(leftStock,rightStock){
-  const left=leftStock[sortKey],right=rightStock[sortKey];
-  let result;
-  if(typeof left==="string"||typeof right==="string"){
-    result=String(left??"").localeCompare(String(right??""),undefined,{numeric:true,sensitivity:"base"});
-  }else{
-    const leftNumber=Number(left),rightNumber=Number(right);
-    result=(Number.isFinite(leftNumber)?leftNumber:0)-(Number.isFinite(rightNumber)?rightNumber:0);
+
+function loadAppSettings() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(SETTINGS_KEY));
+    const savedTaxRate = Number(saved && saved.taxRate);
+    return {
+      dailyRefreshLimit: Math.min(100, Math.max(1, Number(saved && saved.dailyRefreshLimit) || 20)),
+      taxRate: Number.isFinite(savedTaxRate) ? Math.min(1, Math.max(0, savedTaxRate)) : 0.30,
+    };
+  } catch {
+    return {dailyRefreshLimit: 20, taxRate: 0.30};
   }
-  if(result===0&&sortKey!=="symbol")result=leftStock.symbol.localeCompare(rightStock.symbol,undefined,{numeric:true,sensitivity:"base"});
-  return sortDirection==="asc"?result:-result;
 }
-function updateSortHeaders(){
-  document.querySelectorAll("th[data-sort]").forEach(header=>{
-    const active=header.dataset.sort===sortKey;
-    header.classList.toggle("sort-asc",active&&sortDirection==="asc");
-    header.classList.toggle("sort-desc",active&&sortDirection==="desc");
-    header.setAttribute("aria-sort",active?(sortDirection==="asc"?"ascending":"descending"):"none");
+
+function loadState() {
+  try {
+    const current = JSON.parse(localStorage.getItem(STATE_KEY));
+    if (current && Array.isArray(current.stocks) && Array.isArray(current.trades)) {
+      return {
+        stocks: current.stocks.map(normalizeStockState).filter(stock => stock.symbol),
+        trades: current.trades.map(normalizeTrade).filter(isValidTrade),
+        savedAt: String(current.savedAt || ""),
+      };
+    }
+  } catch {}
+  let stocks = [];
+  let trades = [];
+  try {
+    const currentStocks = JSON.parse(localStorage.getItem("harvesterDataV2"));
+    const legacyStocks = JSON.parse(localStorage.getItem("harvesterData"));
+    const source = Array.isArray(currentStocks) && currentStocks.length ? currentStocks : Array.isArray(legacyStocks) && legacyStocks.length ? legacyStocks : seed;
+    stocks = source.map(normalizeStockState).filter(stock => stock.symbol);
+  } catch {
+    stocks = clone(seed).map(normalizeStockState);
+  }
+  try {
+    const legacyTrades = JSON.parse(localStorage.getItem("harvesterTradesV1"));
+    if (Array.isArray(legacyTrades)) trades = legacyTrades.map(normalizeTrade).filter(isValidTrade);
+  } catch {}
+  return {stocks, trades, savedAt: ""};
+}
+
+function migrateOpeningPositions(stocks, trades) {
+  const result = [...trades];
+  const symbolsWithBuys = new Set(result.filter(item => item.type === "buy" && item.status === "executed").map(item => item.symbol));
+  stocks.forEach(stock => {
+    if (symbolsWithBuys.has(stock.symbol) || stock.invested <= 0 || stock.buyPrice <= 0) return;
+    result.push(normalizeTrade({
+      id: `opening-${stock.id}`,
+      type: "buy",
+      symbol: stock.symbol,
+      shares: stock.invested / stock.buyPrice,
+      pricePerShare: stock.buyPrice,
+      amount: stock.invested,
+      tradedAt: "2000-01-01T00:00:00.000Z",
+      createdAt: new Date().toISOString(),
+      source: "opening",
+      note: "Opening position migrated from the existing portfolio",
+    }));
+  });
+  return result;
+}
+
+backupBeforeMigration();
+let appSettings = loadAppSettings();
+const loaded = loadState();
+let stocks = loaded.stocks;
+let trades = migrateOpeningPositions(stocks, loaded.trades);
+let stateSavedAt = loaded.savedAt;
+let cloudReady = false;
+let syncTimer = null;
+let priceRefreshRunning = false;
+let portfolioSortKey = "symbol";
+let portfolioSortDirection = "asc";
+const tableWrap = $("tableWrap");
+const tableScrollControls = $("tableScrollControls");
+const tableScrollPosition = $("tableScrollPosition");
+const scrollTableLeft = $("scrollTableLeft");
+const scrollTableRight = $("scrollTableRight");
+const mainTable = tableWrap.querySelector("table");
+const tableHead = mainTable.tHead;
+const floatingTableHeader = $("floatingTableHeader");
+const floatingTableHeaderScroll = $("floatingTableHeaderScroll");
+const floatingTableHeaderTable = $("floatingTableHeaderTable");
+const floatingTableHead = $("floatingTableHead");
+floatingTableHead.innerHTML = tableHead.innerHTML;
+
+function saveSettingsLocal() {
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify(appSettings));
+}
+function persist({sync = true, preserveTimestamp = false} = {}) {
+  if (!preserveTimestamp) stateSavedAt = new Date().toISOString();
+  localStorage.setItem(STATE_KEY, JSON.stringify({version: 4, savedAt: stateSavedAt, stocks, trades}));
+  saveSettingsLocal();
+  if (sync && cloudReady) scheduleCloudSave();
+}
+if (!loaded.savedAt || trades.length !== loaded.trades.length) persist({sync: false, preserveTimestamp: true});
+
+function pill(text) {
+  let tone = "";
+  if (["Harvest", "Harvest Ready", "Strong Harvest"].includes(text)) tone = "good";
+  else if (["Buy More", "Maybe"].includes(text)) tone = "warn";
+  else if (text === "Strong Buy") tone = "bad";
+  return `<span class="pill ${tone}">${escapeHtml(text || "—")}</span>`;
+}
+function signalLights(stock) {
+  const red = stock.suggestion === "Strong Buy";
+  const yellow = stock.suggestion === "Buy More";
+  const green = stock.action === "Harvest";
+  const label = [red && "Strong Buy", yellow && "Buy More", green && "Harvest"].filter(Boolean).join(", ") || "Hold";
+  return `<span class="signal-lights" role="img" aria-label="${label}" title="${label}"><span class="signal red ${red ? "active" : ""}"></span><span class="signal yellow ${yellow ? "active" : ""}"></span><span class="signal green ${green ? "active" : ""}"></span></span>`;
+}
+function stockInput(stock, key, value, {step = "0.01", max = "", readonly = false} = {}) {
+  if (readonly) return `<span title="Calculated from executed logs">${escapeHtml(value)}</span>`;
+  return `<input data-id="${escapeHtml(stock.id)}" data-key="${key}" type="number" inputmode="decimal" enterkeyhint="next" step="${step}" min="0" ${max ? `max="${max}"` : ""} value="${escapeHtml(value)}">`;
+}
+function pendingLimitControl(items) {
+  if (!items || !items.length) return "";
+  const options = items.map(item => {
+    const code = item.type === "buy" ? "LB" : "LS";
+    const label = `${code}-$${Number(item.pricePerShare).toLocaleString(undefined, {maximumFractionDigits: 4})}-${daysAgo(item.createdAt)}d`;
+    return `<option>${escapeHtml(label)}</option>`;
+  }).join("");
+  return `<select class="limit-summary" aria-label="Pending limit orders">${options}</select>`;
+}
+
+function currentLedger() {
+  return calculateLedger(trades, appSettings.taxRate);
+}
+function makePortfolioRows(ledger) {
+  const executedSymbols = new Set(ledger.entries.filter(entry => entry.type === "buy" && entry.status === "executed").map(entry => entry.symbol));
+  return stocks.map(stock => {
+    const holding = ledger.holdings[stock.symbol] || {shares: 0, cost: 0, averagePrice: 0};
+    const pending = ledger.pendingBySymbol[stock.symbol] || [];
+    const pendingBuy = pending.filter(item => item.type === "buy").reduce((sum, item) => sum + item.amount, 0);
+    const pendingAmount = pending.reduce((sum, item) => sum + item.amount, 0);
+    const loggedBasis = executedSymbols.has(stock.symbol);
+    const averagePrice = loggedBasis ? holding.averagePrice : stock.buyPrice;
+    const openCost = loggedBasis ? holding.cost : stock.invested;
+    const explicitShares = loggedBasis ? holding.shares : undefined;
+    const calculated = calculate({...stock, buyPrice: averagePrice, invested: openCost, shares: explicitShares});
+    return {stock, pending, pendingAmount, loggedBasis, averagePrice, calculated, displayedInvested: calculated.invested + pendingBuy};
   });
 }
-function selectSort(header){
-  const key=header.dataset.sort;if(!key)return;
-  if(sortKey===key)sortDirection=sortDirection==="asc"?"desc":"asc";
-  else{sortKey=key;sortDirection="asc"}
-  updateSortHeaders();render(false);
+function portfolioSortValue(row, key) {
+  if (key === "invested") return row.displayedInvested;
+  if (key === "pendingAmount") return row.pendingAmount;
+  return row.calculated[key] ?? row.stock[key] ?? "";
 }
-function render(saveData=true){
-  const calculated=stocks.map(calculate).sort(compareStocks);
-  rows.innerHTML=calculated.length?"":'<tr><td class="empty" colspan="19">Add a stock to begin.</td></tr>';
-  let ti=0,tv=0,tp=0,th=0;
-  calculated.forEach(stock=>{
-    ti+=stock.invested;tv+=stock.currentValue;tp+=stock.profit;th+=stock.harvestCash;
-    rows.insertAdjacentHTML("beforeend",`<tr>
-      <td><div class="symbol-cell">${signalLights(stock)}<span class="stock-symbol">${escapeHtml(stock.symbol)}</span></div></td>
-      <td>${input(stock,"current",stock.current.toFixed(2))}</td><td>${input(stock,"buyPrice",stock.buyPrice.toFixed(2))}</td>
-      <td>${input(stock,"invested",stock.invested.toFixed(2))}</td><td>${number(stock.shares,2)}</td>
-      <td>${money(stock.harvestPrice)}</td><td>${stock.harvestCash?money(stock.harvestCash):"—"}</td>
-      <td>${input(stock,"growthGoal",(stock.growthGoal*100).toFixed(2),{step:"0.01",max:"100"})}</td>
-      <td>${money(stock.currentValue)}</td><td class="${stock.profit>=0?"positive":"negative"}">${money(stock.profit)}</td>
-      <td class="${stock.returnRate>=0?"positive":"negative"}">${percent(stock.returnRate)}</td>
-      <td>${input(stock,"harvestRate",(stock.harvestRate*100).toFixed(2),{step:"0.01",max:"100"})}</td>
-      <td>${input(stock,"minimumHarvest",stock.minimumHarvest.toFixed(2))}</td>
-      <td>${input(stock,"previousClose",stock.previousClose.toFixed(2))}</td><td>${percent(stock.dayChange)}</td>
-      <td>${pill(stock.action)}</td><td>${pill(stock.suggestion)}</td><td>${pill(stock.buySignal)}</td>
+function comparePortfolioRows(left, right) {
+  const leftValue = portfolioSortValue(left, portfolioSortKey);
+  const rightValue = portfolioSortValue(right, portfolioSortKey);
+  let result;
+  if (typeof leftValue === "string" || typeof rightValue === "string") result = String(leftValue).localeCompare(String(rightValue), undefined, {numeric: true, sensitivity: "base"});
+  else result = (Number(leftValue) || 0) - (Number(rightValue) || 0);
+  if (result === 0 && portfolioSortKey !== "symbol") result = left.stock.symbol.localeCompare(right.stock.symbol, undefined, {numeric: true, sensitivity: "base"});
+  return portfolioSortDirection === "asc" ? result : -result;
+}
+function updateSortHeaders() {
+  document.querySelectorAll("th[data-sort]").forEach(header => {
+    const active = header.dataset.sort === portfolioSortKey;
+    header.classList.toggle("sort-asc", active && portfolioSortDirection === "asc");
+    header.classList.toggle("sort-desc", active && portfolioSortDirection === "desc");
+    header.setAttribute("aria-sort", active ? (portfolioSortDirection === "asc" ? "ascending" : "descending") : "none");
+  });
+}
+function selectPortfolioSort(header) {
+  const key = header.dataset.sort;
+  if (!key) return;
+  if (portfolioSortKey === key) portfolioSortDirection = portfolioSortDirection === "asc" ? "desc" : "asc";
+  else { portfolioSortKey = key; portfolioSortDirection = "asc"; }
+  updateSortHeaders();
+  render();
+}
+function render() {
+  const ledger = currentLedger();
+  const portfolioRows = makePortfolioRows(ledger).sort(comparePortfolioRows);
+  $("rows").innerHTML = stocks.length ? "" : '<tr><td class="empty" colspan="22">Add a stock to begin.</td></tr>';
+  let totalInvestedAmount = 0;
+  let totalValueAmount = 0;
+  let totalProfitAmount = 0;
+  let totalHarvestAmount = 0;
+  portfolioRows.forEach(({stock, pending, loggedBasis, averagePrice, calculated, displayedInvested}) => {
+    totalInvestedAmount += displayedInvested;
+    totalValueAmount += calculated.currentValue;
+    totalProfitAmount += calculated.profit;
+    totalHarvestAmount += calculated.harvestCash;
+    $("rows").insertAdjacentHTML("beforeend", `<tr>
+      <td><div class="symbol-cell">${signalLights(calculated)}<span class="stock-symbol">${escapeHtml(stock.symbol)}</span></div></td>
+      <td>${stockInput(stock, "current", stock.current.toFixed(2))}</td>
+      <td>${stockInput(stock, "buyPrice", averagePrice.toFixed(2), {readonly: loggedBasis})}</td>
+      <td>${loggedBasis ? money(displayedInvested) : stockInput(stock, "invested", displayedInvested.toFixed(2))}</td>
+      <td>${pendingLimitControl(pending)}</td>
+      <td>${calculated.shares.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td><td>${money(calculated.harvestPrice)}</td><td>${calculated.harvestCash ? money(calculated.harvestCash) : "—"}</td>
+      <td>${stockInput(stock, "growthGoal", (stock.growthGoal * 100).toFixed(2), {max: "100"})}</td>
+      <td>${stock.high15 ? money(stock.high15) : "—"}</td><td>${stock.low15 ? money(stock.low15) : "—"}</td>
+      <td>${money(calculated.currentValue)}</td><td class="${calculated.profit >= 0 ? "positive" : "negative"}">${money(calculated.profit)}</td>
+      <td class="${calculated.returnRate >= 0 ? "positive" : "negative"}">${percent(calculated.returnRate)}</td>
+      <td>${stockInput(stock, "harvestRate", (stock.harvestRate * 100).toFixed(2), {max: "100"})}</td>
+      <td>${stockInput(stock, "minimumHarvest", stock.minimumHarvest.toFixed(2))}</td>
+      <td>${stockInput(stock, "previousClose", stock.previousClose.toFixed(2))}</td><td>${percent(calculated.dayChange)}</td>
+      <td>${pill(calculated.action)}</td><td>${pill(calculated.suggestion)}</td><td>${pill(calculated.buySignal)}</td>
       <td><button class="remove" data-remove="${escapeHtml(stock.id)}" aria-label="Remove ${escapeHtml(stock.symbol)}">×</button></td>
     </tr>`);
   });
-  totalInvested.textContent=money(ti);totalValue.textContent=money(tv);totalProfit.textContent=money(tp);
-  totalValue.className=tv>ti?"positive":"negative";
-  totalProfit.className=tp>=0?"positive":"negative";totalHarvest.textContent=money(th);if(saveData)save();
-  requestAnimationFrame(()=>{updateTableScrollControls();syncFloatingTableHeader()});
+  $("totalInvested").textContent = money(totalInvestedAmount);
+  $("totalValue").textContent = money(totalValueAmount);
+  $("totalProfit").textContent = money(totalProfitAmount);
+  $("totalHarvest").textContent = money(totalHarvestAmount);
+  $("totalValue").className = totalValueAmount >= totalInvestedAmount ? "positive" : "negative";
+  $("totalProfit").className = totalProfitAmount >= 0 ? "positive" : "negative";
+  $("totalDeposited").textContent = money(ledger.summary.totalDeposited);
+  $("tradeRealizedProfit").textContent = money(ledger.summary.realizedProfitLoss);
+  $("tradeRealizedProfit").className = ledger.summary.realizedProfitLoss >= 0 ? "positive" : "negative";
+  $("estimatedTax").textContent = money(ledger.summary.estimatedTax);
+  $("finalHarvest").textContent = money(ledger.summary.finalHarvest);
+  $("finalHarvest").className = ledger.summary.finalHarvest >= 0 ? "positive" : "negative";
+  $("taxRateLabel").textContent = (appSettings.taxRate * 100).toLocaleString(undefined, {maximumFractionDigits: 1});
+  populateStockChoices();
+  updateSortHeaders();
+  requestAnimationFrame(() => { updateTableScrollControls(); syncFloatingTableHeader(); });
 }
-const mainTable=tableWrap.querySelector("table"),tableHead=mainTable.tHead,floatingTableHeader=document.getElementById("floatingTableHeader"),floatingTableHeaderScroll=document.getElementById("floatingTableHeaderScroll"),floatingTableHeaderTable=document.getElementById("floatingTableHeaderTable"),floatingTableHead=document.getElementById("floatingTableHead");
-floatingTableHead.innerHTML=tableHead.innerHTML;
-function updateFloatingHeaderPosition(){
-  const wrapBox=tableWrap.getBoundingClientRect(),headerBox=tableHead.getBoundingClientRect(),controlsBox=tableScrollControls.getBoundingClientRect();
-  const controlsVisible=!tableScrollControls.hidden&&getComputedStyle(tableScrollControls).display!=="none";
-  const topOffset=controlsVisible?Math.max(0,controlsBox.bottom):0;
-  const visible=headerBox.top<topOffset&&wrapBox.bottom>topOffset+headerBox.height;
-  floatingTableHeader.hidden=!visible;
-  if(!visible)return;
-  floatingTableHeader.style.top=`${topOffset}px`;
-  floatingTableHeader.style.left=`${wrapBox.left}px`;
-  floatingTableHeader.style.width=`${wrapBox.width}px`;
-  floatingTableHeaderScroll.scrollLeft=tableWrap.scrollLeft;
+
+function updateTableScrollControls() {
+  const maximum = Math.max(0, tableWrap.scrollWidth - tableWrap.clientWidth);
+  tableScrollControls.hidden = maximum < 1;
+  tableScrollPosition.max = String(Math.ceil(maximum));
+  tableScrollPosition.value = String(Math.min(maximum, tableWrap.scrollLeft));
+  scrollTableLeft.disabled = tableWrap.scrollLeft <= 0;
+  scrollTableRight.disabled = tableWrap.scrollLeft >= maximum - 1;
 }
-function syncFloatingTableHeader(){
-  const originalHeaders=[...tableHead.querySelectorAll("th")],floatingHeaders=[...floatingTableHead.querySelectorAll("th")];
-  const tableWidth=mainTable.getBoundingClientRect().width;
-  floatingTableHeaderTable.style.width=`${tableWidth}px`;
-  floatingTableHeaderTable.style.minWidth=`${tableWidth}px`;
-  originalHeaders.forEach((header,index)=>{
-    const floatingHeader=floatingHeaders[index];if(!floatingHeader)return;
-    const width=header.getBoundingClientRect().width;
-    floatingHeader.style.width=`${width}px`;
-    floatingHeader.style.minWidth=`${width}px`;
-    floatingHeader.style.maxWidth=`${width}px`;
+function updateFloatingHeaderPosition() {
+  const wrapBox = tableWrap.getBoundingClientRect();
+  const headerBox = tableHead.getBoundingClientRect();
+  const controlsBox = tableScrollControls.getBoundingClientRect();
+  const controlsVisible = !tableScrollControls.hidden && getComputedStyle(tableScrollControls).display !== "none";
+  const topOffset = controlsVisible ? Math.max(0, controlsBox.bottom) : 0;
+  const visible = headerBox.top < topOffset && wrapBox.bottom > topOffset + headerBox.height;
+  floatingTableHeader.hidden = !visible;
+  if (!visible) return;
+  floatingTableHeader.style.top = `${topOffset}px`;
+  floatingTableHeader.style.left = `${wrapBox.left}px`;
+  floatingTableHeader.style.width = `${wrapBox.width}px`;
+  floatingTableHeaderScroll.scrollLeft = tableWrap.scrollLeft;
+}
+function syncFloatingTableHeader() {
+  const originalHeaders = [...tableHead.querySelectorAll("th")];
+  const floatingHeaders = [...floatingTableHead.querySelectorAll("th")];
+  const tableWidth = mainTable.getBoundingClientRect().width;
+  floatingTableHeaderTable.style.width = `${tableWidth}px`;
+  floatingTableHeaderTable.style.minWidth = `${tableWidth}px`;
+  originalHeaders.forEach((header, index) => {
+    const floatingHeader = floatingHeaders[index];
+    if (!floatingHeader) return;
+    const width = header.getBoundingClientRect().width;
+    floatingHeader.style.width = `${width}px`;
+    floatingHeader.style.minWidth = `${width}px`;
+    floatingHeader.style.maxWidth = `${width}px`;
   });
   updateFloatingHeaderPosition();
 }
-window.addEventListener("scroll",updateFloatingHeaderPosition,{passive:true});
-tableHead.addEventListener("click",event=>{
-  const header=event.target.closest("th[data-sort]");if(header)selectSort(header);
-});
-tableHead.addEventListener("keydown",event=>{
-  if(!["Enter"," "].includes(event.key))return;
-  const header=event.target.closest("th[data-sort]");if(!header)return;
-  event.preventDefault();selectSort(header);
-});
-floatingTableHead.addEventListener("click",event=>{
-  const header=event.target.closest("th[data-sort]");if(header)selectSort(header);
-});
-floatingTableHead.addEventListener("keydown",event=>{
-  if(!["Enter"," "].includes(event.key))return;
-  const header=event.target.closest("th[data-sort]");if(!header)return;
-  event.preventDefault();selectSort(header);
-});
-rows.addEventListener("input",event=>{
-  const element=event.target;if(!element.dataset.key)return;
-  const stock=stocks.find(item=>item.id===element.dataset.id);if(!stock)return;
-  const key=element.dataset.key;
-  const entered=Math.max(0,Number(element.value)||0);
-  stock[key]=["growthGoal","harvestRate"].includes(key)?Math.min(100,entered)/100:entered;save();
-});
-function adjacentFieldReference(element,direction){
-  const fields=[...rows.querySelectorAll("input[data-key]")],index=fields.indexOf(element),next=fields[index+direction];
-  return next?{id:next.dataset.id,key:next.dataset.key}:null;
+function sortHeaderInteraction(event) {
+  const header = event.target.closest("th[data-sort]");
+  if (header) selectPortfolioSort(header);
 }
-function focusField(reference){
-  if(!reference)return;
-  const field=[...rows.querySelectorAll("input[data-key]")].find(element=>element.dataset.id===reference.id&&element.dataset.key===reference.key);
-  if(!field)return;
-  field.focus({preventScroll:true});
+function sortHeaderKeyInteraction(event) {
+  if (!["Enter", " "].includes(event.key)) return;
+  const header = event.target.closest("th[data-sort]");
+  if (!header) return;
+  event.preventDefault();
+  selectPortfolioSort(header);
+}
+tableScrollPosition.addEventListener("input", () => { tableWrap.scrollLeft = Number(tableScrollPosition.value); });
+tableWrap.addEventListener("scroll", () => { updateTableScrollControls(); updateFloatingHeaderPosition(); }, {passive: true});
+tableWrap.addEventListener("wheel", event => {
+  if (!event.shiftKey || !event.deltaY) return;
+  event.preventDefault();
+  tableWrap.scrollLeft += event.deltaY;
+}, {passive: false});
+scrollTableLeft.onclick = () => tableWrap.scrollBy({left: -Math.max(240, tableWrap.clientWidth * .7), behavior: "smooth"});
+scrollTableRight.onclick = () => tableWrap.scrollBy({left: Math.max(240, tableWrap.clientWidth * .7), behavior: "smooth"});
+tableHead.addEventListener("click", sortHeaderInteraction);
+tableHead.addEventListener("keydown", sortHeaderKeyInteraction);
+floatingTableHead.addEventListener("click", sortHeaderInteraction);
+floatingTableHead.addEventListener("keydown", sortHeaderKeyInteraction);
+window.addEventListener("scroll", updateFloatingHeaderPosition, {passive: true});
+window.addEventListener("resize", () => { updateTableScrollControls(); syncFloatingTableHeader(); });
+if ("ResizeObserver" in window) {
+  const tableScrollObserver = new ResizeObserver(() => { updateTableScrollControls(); syncFloatingTableHeader(); });
+  tableScrollObserver.observe(tableWrap);
+  tableScrollObserver.observe(mainTable);
+}
+
+$("rows").addEventListener("input", event => {
+  const element = event.target;
+  if (!element.dataset.key) return;
+  const stock = stocks.find(item => item.id === element.dataset.id);
+  if (!stock) return;
+  const entered = Math.max(0, Number(element.value) || 0);
+  stock[element.dataset.key] = ["growthGoal", "harvestRate"].includes(element.dataset.key) ? Math.min(100, entered) / 100 : entered;
+  persist();
+});
+function adjacentFieldReference(element, direction) {
+  const fields = [...$("rows").querySelectorAll("input[data-key]")];
+  const next = fields[fields.indexOf(element) + direction];
+  return next ? {id: next.dataset.id, key: next.dataset.key} : null;
+}
+function focusPortfolioField(reference) {
+  if (!reference) return;
+  const field = [...$("rows").querySelectorAll("input[data-key]")].find(element => element.dataset.id === reference.id && element.dataset.key === reference.key);
+  if (!field) return;
+  field.focus({preventScroll: true});
   field.select();
-  field.scrollIntoView({block:"nearest",inline:"nearest"});
+  field.scrollIntoView({block: "nearest", inline: "nearest"});
 }
-rows.addEventListener("keydown",event=>{
-  const element=event.target;if(!element.dataset.key)return;
-  const isTab=event.key==="Tab",isPhoneNext=event.key==="Enter";
-  if(!isTab&&!isPhoneNext)return;
-  const direction=isTab&&event.shiftKey?-1:1;
-  const next=adjacentFieldReference(element,direction);
-  if(!next){if(isPhoneNext){event.preventDefault();element.blur()}return}
+$("rows").addEventListener("keydown", event => {
+  const element = event.target;
+  if (!element.dataset.key) return;
+  const isTab = event.key === "Tab";
+  const isPhoneNext = event.key === "Enter";
+  if (!isTab && !isPhoneNext) return;
+  const next = adjacentFieldReference(element, isTab && event.shiftKey ? -1 : 1);
+  if (!next) {
+    if (isPhoneNext) { event.preventDefault(); element.blur(); }
+    return;
+  }
   event.preventDefault();
   render();
-  requestAnimationFrame(()=>focusField(next));
+  requestAnimationFrame(() => focusPortfolioField(next));
 });
-rows.addEventListener("change",event=>{if(event.target.dataset.key)render()});
-rows.addEventListener("click",event=>{
-  const id=event.target.dataset.remove;if(!id)return;
-  const stock=stocks.find(item=>item.id===id);
-  if(confirm(`Remove ${stock?stock.symbol:"this stock"}?`)){stocks=stocks.filter(item=>item.id!==id);render()}
+$("rows").addEventListener("change", event => { if (event.target.dataset.key) render(); });
+$("rows").addEventListener("click", event => {
+  const id = event.target.dataset.remove;
+  if (!id) return;
+  const stock = stocks.find(item => item.id === id);
+  if (confirm(`Remove ${stock ? stock.symbol : "this stock"} from the portfolio? Its logs will be kept.`)) {
+    stocks = stocks.filter(item => item.id !== id);
+    persist();
+    render();
+  }
 });
-const tradeForm=document.getElementById("tradeForm"),tradeId=document.getElementById("tradeId"),tradeType=document.getElementById("tradeType"),tradeSymbol=document.getElementById("tradeSymbol"),tradeAmount=document.getElementById("tradeAmount"),tradeShares=document.getElementById("tradeShares"),tradePrice=document.getElementById("tradePrice"),tradeDateTime=document.getElementById("tradeDateTime"),tradeRows=document.getElementById("tradeRows"),tradeFormMessage=document.getElementById("tradeFormMessage"),logTrade=document.getElementById("logTrade"),cancelTradeEdit=document.getElementById("cancelTradeEdit");
-const tradeTotalBought=document.getElementById("tradeTotalBought"),tradeTotalSold=document.getElementById("tradeTotalSold"),tradeOpenCost=document.getElementById("tradeOpenCost"),tradeRealizedProfit=document.getElementById("tradeRealizedProfit");
-const toLocalDateTimeValue=value=>{
-  const date=value?new Date(value):new Date();
-  const local=new Date(date.getTime()-(date.getTimezoneOffset()*60000));
-  return local.toISOString().slice(0,16);
-};
-function setTradeMessage(message,tone=""){
-  tradeFormMessage.textContent=message;
-  tradeFormMessage.className=`form-message ${tone}`;
+
+const tradeForm = $("tradeForm");
+let fillingLimitId = "";
+function populateStockChoices() {
+  const current = $("tradeSymbol").value;
+  $("tradeSymbol").innerHTML = stocks.map(stock => `<option value="${escapeHtml(stock.symbol)}">${escapeHtml(stock.symbol)}</option>`).join("");
+  if (stocks.some(stock => stock.symbol === current)) $("tradeSymbol").value = current;
 }
-function updateTradePrice(){
-  const price=calculatePricePerShare(tradeAmount.value,tradeShares.value);
-  tradePrice.value=price?money(price):"—";
+function setTradeMessage(message, tone = "") {
+  $("tradeFormMessage").textContent = message;
+  $("tradeFormMessage").className = `form-message ${tone}`;
 }
-function resetTradeForm(message=""){
+function updateTradeMode() {
+  const deposit = $("tradeType").value === "deposit";
+  document.querySelectorAll("[data-trade-only]").forEach(element => { element.hidden = deposit; });
+  $("tradeSymbol").required = !deposit;
+  $("tradeShares").required = !deposit;
+  $("tradePrice").required = !deposit;
+  $("tradeAmount").readOnly = !deposit;
+  $("tradeAmountHelp").textContent = deposit ? "Enter the amount deposited" : "Calculated automatically as shares × price";
+  if (deposit) {
+    $("tradeLimit").checked = false;
+  } else {
+    updateTradeAmount();
+  }
+}
+function updateTradeAmount() {
+  if ($("tradeType").value === "deposit") return;
+  const amount = (Number($("tradeShares").value) || 0) * (Number($("tradePrice").value) || 0);
+  $("tradeAmount").value = amount > 0 ? amount.toFixed(2) : "";
+}
+function resetTradeForm(message = "") {
   tradeForm.reset();
-  tradeId.value="";
-  tradeType.value="buy";
-  tradeDateTime.value=toLocalDateTimeValue();
-  tradePrice.value="—";
-  logTrade.textContent="Log Trade";
-  cancelTradeEdit.hidden=true;
-  setTradeMessage(message,message?"positive":"");
+  $("tradeId").value = "";
+  fillingLimitId = "";
+  $("tradeType").value = "buy";
+  $("tradeShares").value = "";
+  $("tradePrice").value = "";
+  $("tradeDateTime").value = toLocalDateTimeValue();
+  $("tradeAmount").value = "";
+  $("logTrade").textContent = "Save Log";
+  $("cancelTradeEdit").hidden = true;
+  updateTradeMode();
+  setTradeMessage(message, message ? "positive" : "");
 }
-function renderTrades(){
-  const ledger=calculateLedger(trades);
-  const entries=[...ledger.entries].sort((left,right)=>new Date(right.tradedAt)-new Date(left.tradedAt)||new Date(right.createdAt)-new Date(left.createdAt));
-  tradeRows.innerHTML=entries.length?"":'<tr><td class="empty" colspan="8">No trades logged yet.</td></tr>';
-  entries.forEach(entry=>{
-    const realized=entry.type==="sell"
-      ? `<span class="${entry.realizedProfitLoss>=0?"positive":"negative"}">${money(entry.realizedProfitLoss)}</span>`
-      : "—";
-    tradeRows.insertAdjacentHTML("beforeend",`<tr>
-      <td>${escapeHtml(new Date(entry.tradedAt).toLocaleString([],{dateStyle:"medium",timeStyle:"short"}))}</td>
-      <td><strong>${escapeHtml(entry.symbol)}</strong></td>
-      <td><span class="trade-action ${entry.type}">${entry.type==="buy"?"Bought":"Sold"}</span></td>
-      <td>${quantity(entry.shares)}</td><td>${money(entry.pricePerShare)}</td><td>${money(entry.amount)}</td><td>${realized}</td>
-      <td><div class="trade-row-actions"><button data-edit-trade="${escapeHtml(entry.id)}">Edit</button><button class="danger" data-delete-trade="${escapeHtml(entry.id)}">Delete</button></div></td>
+function loadTradeIntoForm(entry, {fill = false} = {}) {
+  $("tradeId").value = entry.id;
+  fillingLimitId = fill ? entry.id : "";
+  $("tradeType").value = entry.type;
+  updateTradeMode();
+  if (entry.type !== "deposit") {
+    $("tradeSymbol").value = entry.symbol;
+    $("tradeShares").value = entry.shares;
+    $("tradePrice").value = entry.pricePerShare;
+    $("tradeLimit").checked = entry.status === "pending" && !fill;
+    updateTradeAmount();
+  } else {
+    $("tradeAmount").value = entry.amount;
+  }
+  $("tradeDateTime").value = toLocalDateTimeValue(fill ? new Date() : entry.tradedAt);
+  $("tradeNote").value = entry.note;
+  $("logTrade").textContent = fill ? "Save as Filled" : "Save Changes";
+  $("cancelTradeEdit").hidden = false;
+  setTradeMessage(fill ? "Review the actual fill price and time, then save." : "Editing this log.");
+  tradeForm.scrollIntoView({behavior: "smooth", block: "start"});
+}
+function ensureOpeningForSymbol(symbol, baseTrades) {
+  if (baseTrades.some(item => item.type === "buy" && item.symbol === symbol && item.status === "executed")) return baseTrades;
+  const stock = stocks.find(item => item.symbol === symbol);
+  if (!stock || stock.invested <= 0 || stock.buyPrice <= 0) return baseTrades;
+  return [normalizeTrade({
+    id: `opening-${stock.id}`, type: "buy", symbol, shares: stock.invested / stock.buyPrice,
+    pricePerShare: stock.buyPrice, amount: stock.invested, tradedAt: "2000-01-01T00:00:00.000Z",
+    createdAt: new Date().toISOString(), source: "opening", note: "Opening position migrated from the existing portfolio",
+  }), ...baseTrades];
+}
+function renderTrades() {
+  const ledger = currentLedger();
+  const byId = new Map(ledger.entries.map(entry => [entry.id, entry]));
+  const entries = sortTrades(ledger.entries, $("tradeSort").value);
+  $("tradeRows").innerHTML = entries.length ? "" : '<tr><td class="empty" colspan="9">No logs yet.</td></tr>';
+  entries.forEach(entry => {
+    const pending = entry.status === "pending";
+    const typeLabel = entry.type === "deposit" ? "Deposit" : entry.source === "opening" ? "Opening" : entry.type === "buy" ? "Bought" : "Sold";
+    let sharesCell = "—";
+    if (entry.type === "buy") {
+      const parts = [];
+      if (entry.soldShares > 0) parts.push(`<span class="sold-portion" title="Sold via FIFO">${quantity(entry.soldShares)}</span>`);
+      if (entry.remainingShares > 0) parts.push(`<span class="open-portion" title="Still open">${quantity(entry.remainingShares)}</span>`);
+      sharesCell = pending ? quantity(entry.shares) : parts.join(" + ") || quantity(entry.shares);
+    } else if (entry.type === "sell") {
+      sharesCell = `<span class="${pending ? "" : "sold-portion"}">${quantity(entry.shares)}</span>`;
+    }
+    let fifoStatus = "Cash deposit";
+    if (pending) fifoStatus = `Pending ${entry.type === "buy" ? "buy" : "sell"} • ${daysAgo(entry.createdAt)}d`;
+    else if (entry.type === "sell") fifoStatus = `Cost ${money(entry.fifoCost)} • P/L ${money(entry.realizedProfitLoss)}`;
+    else if (entry.type === "buy") fifoStatus = `${quantity(entry.remainingShares)} shares open`;
+    const actions = [
+      pending ? `<button data-fill-trade="${escapeHtml(entry.id)}">Mark Filled</button>` : "",
+      `<button data-edit-trade="${escapeHtml(entry.id)}">Edit</button>`,
+      `<button class="danger" data-delete-trade="${escapeHtml(entry.id)}">Delete</button>`,
+    ].join("");
+    $("tradeRows").insertAdjacentHTML("beforeend", `<tr>
+      <td>${entry.source === "opening" ? "Opening balance" : escapeHtml(new Date(entry.tradedAt).toLocaleString([], {dateStyle: "medium", timeStyle: "short"}))}</td>
+      <td>${entry.symbol ? escapeHtml(entry.symbol) : "—"}</td>
+      <td><span class="trade-action ${entry.type} ${pending ? "pending" : ""}">${typeLabel}</span></td>
+      <td>${sharesCell}</td><td>${entry.type === "deposit" ? "—" : money(entry.pricePerShare)}</td><td>${money(entry.amount)}</td>
+      <td class="${entry.realizedProfitLoss < 0 ? "negative" : entry.realizedProfitLoss > 0 ? "positive" : ""}">${escapeHtml(fifoStatus)}</td>
+      <td class="trade-note">${escapeHtml(entry.note || "—")}</td><td><div class="trade-row-actions">${actions}</div></td>
     </tr>`);
   });
-  tradeTotalBought.textContent=money(ledger.summary.totalBought);
-  tradeTotalSold.textContent=money(ledger.summary.totalSold);
-  tradeOpenCost.textContent=money(ledger.summary.openCost);
-  tradeRealizedProfit.textContent=money(ledger.summary.realizedProfitLoss);
-  tradeRealizedProfit.className=ledger.summary.realizedProfitLoss>=0?"positive":"negative";
+  $("logTotalDeposited").textContent = money(ledger.summary.totalDeposited);
+  $("tradeOpenCost").textContent = money(ledger.summary.openCost);
+  $("pendingBuyAmount").textContent = money(ledger.summary.committedBuyAmount);
+  $("logRealizedProfit").textContent = money(ledger.summary.realizedProfitLoss);
+  $("logRealizedProfit").className = ledger.summary.realizedProfitLoss >= 0 ? "positive" : "negative";
 }
-tradeForm.addEventListener("input",event=>{
-  if(event.target===tradeAmount||event.target===tradeShares)updateTradePrice();
-  if(event.target===tradeSymbol)tradeSymbol.value=tradeSymbol.value.toUpperCase();
-  setTradeMessage("");
+
+tradeForm.addEventListener("input", event => {
+  if (event.target === $("tradeShares") || event.target === $("tradePrice")) updateTradeAmount();
 });
-tradeForm.addEventListener("submit",event=>{
+$("tradeType").addEventListener("change", updateTradeMode);
+$("tradeSort").addEventListener("change", renderTrades);
+$("cancelTradeEdit").addEventListener("click", () => resetTradeForm());
+tradeForm.addEventListener("submit", event => {
   event.preventDefault();
-  const existing=trades.find(item=>item.id===tradeId.value);
-  const tradedDate=new Date(tradeDateTime.value);
-  const candidate=normalizeTrade({
-    id:existing?existing.id:undefined,
-    type:tradeType.value,
-    symbol:tradeSymbol.value,
-    amount:tradeAmount.value,
-    shares:tradeShares.value,
-    tradedAt:Number.isFinite(tradedDate.getTime())?tradedDate.toISOString():"invalid",
-    createdAt:existing?existing.createdAt:new Date().toISOString(),
+  const existing = trades.find(item => item.id === $("tradeId").value);
+  const type = $("tradeType").value;
+  const tradedDate = new Date($("tradeDateTime").value);
+  const isDeposit = type === "deposit";
+  const pending = !isDeposit && $("tradeLimit").checked;
+  const wasLimit = existing && existing.orderKind === "limit";
+  const candidate = normalizeTrade({
+    id: existing ? existing.id : undefined,
+    type,
+    symbol: isDeposit ? "" : $("tradeSymbol").value,
+    shares: isDeposit ? 0 : $("tradeShares").value,
+    pricePerShare: isDeposit ? 0 : $("tradePrice").value,
+    amount: $("tradeAmount").value,
+    orderKind: isDeposit ? "cash" : (pending || wasLimit || fillingLimitId) ? "limit" : "market",
+    status: pending ? "pending" : "executed",
+    tradedAt: Number.isFinite(tradedDate.getTime()) ? tradedDate.toISOString() : "invalid",
+    createdAt: existing ? existing.createdAt : new Date().toISOString(),
+    source: existing ? existing.source : "log",
+    note: $("tradeNote").value,
   });
-  if(!isValidTrade(candidate)){
-    setTradeMessage("Enter a valid stock symbol, dollar amount, number of shares, and date.");
-    return;
-  }
-  const nextTrades=existing?trades.map(item=>item.id===existing.id?candidate:item):[...trades,candidate];
-  if(calculateLedger(nextTrades).hasUnmatchedSales){
-    setTradeMessage("This would leave a sale without enough earlier purchased shares. Add or correct the earlier purchase first.");
-    return;
-  }
-  trades=nextTrades.map(normalizeTrade);
-  renderTrades();save();resetTradeForm(existing?"Trade updated.":"Trade logged.");
+  if (!isValidTrade(candidate)) return setTradeMessage(isDeposit ? "Enter a positive deposit amount and valid date." : "Choose a stock and enter positive shares, price, and a valid date.");
+  let nextTrades = existing ? trades.map(item => item.id === existing.id ? candidate : item) : [...trades, candidate];
+  if (!isDeposit && candidate.status === "executed") nextTrades = ensureOpeningForSymbol(candidate.symbol, nextTrades);
+  const nextLedger = calculateLedger(nextTrades, appSettings.taxRate);
+  if (nextLedger.hasUnmatchedSales) return setTradeMessage("This sale is larger than the earlier available shares. Correct the shares or add the missing earlier purchase.");
+  trades = nextTrades.map(normalizeTrade);
+  persist();
+  render();
+  renderTrades();
+  resetTradeForm(pending ? "Pending limit saved. It will not affect profit/loss until marked filled." : isDeposit ? "Deposit saved." : "Executed trade saved.");
 });
-cancelTradeEdit.addEventListener("click",()=>resetTradeForm());
-tradeRows.addEventListener("click",event=>{
-  const editId=event.target.dataset.editTrade,deleteId=event.target.dataset.deleteTrade;
-  if(editId){
-    const trade=trades.find(item=>item.id===editId);if(!trade)return;
-    tradeId.value=trade.id;tradeType.value=trade.type;tradeSymbol.value=trade.symbol;
-    tradeAmount.value=trade.amount;tradeShares.value=trade.shares;tradeDateTime.value=toLocalDateTimeValue(trade.tradedAt);
-    updateTradePrice();logTrade.textContent="Save Changes";cancelTradeEdit.hidden=false;setTradeMessage("");
-    tradeForm.scrollIntoView({behavior:"smooth",block:"center"});tradeSymbol.focus();
+
+$("tradeRows").addEventListener("click", event => {
+  const fillId = event.target.dataset.fillTrade;
+  const editId = event.target.dataset.editTrade;
+  const deleteId = event.target.dataset.deleteTrade;
+  if (fillId || editId) {
+    const entry = trades.find(item => item.id === (fillId || editId));
+    if (entry) loadTradeIntoForm(entry, {fill: Boolean(fillId)});
     return;
   }
-  if(deleteId){
-    const trade=trades.find(item=>item.id===deleteId);if(!trade)return;
-    if(!confirm(`Delete this ${trade.type==="buy"?"purchase":"sale"} of ${trade.symbol}?`))return;
-    const nextTrades=trades.filter(item=>item.id!==deleteId);
-    if(calculateLedger(nextTrades).hasUnmatchedSales){
-      setTradeMessage("That purchase is needed by a later sale. Edit or delete the later sale first.");
-      tradeForm.scrollIntoView({behavior:"smooth",block:"center"});return;
+  if (!deleteId) return;
+  const entry = trades.find(item => item.id === deleteId);
+  if (!entry || !confirm(`Delete this ${entry.type === "deposit" ? "deposit" : entry.type === "buy" ? "purchase" : "sale"} log?`)) return;
+  const nextTrades = trades.filter(item => item.id !== deleteId);
+  if (calculateLedger(nextTrades, appSettings.taxRate).hasUnmatchedSales) return setTradeMessage("This purchase cannot be deleted because a later sale needs those shares.");
+  trades = nextTrades;
+  if ($("tradeId").value === deleteId) resetTradeForm();
+  persist();
+  render();
+  renderTrades();
+});
+
+function setTradeModal(open) {
+  $("tradeModal").classList.toggle("open", open);
+  if (open) {
+    populateStockChoices();
+    renderTrades();
+    if (!$("tradeDateTime").value) resetTradeForm();
+  }
+}
+$("openTradeLog").onclick = () => {
+  if (!$("tradeId").value) resetTradeForm();
+  setTradeModal(true);
+};
+$("closeTradeLog").onclick = () => setTradeModal(false);
+$("tradeModal").addEventListener("click", event => { if (event.target === $("tradeModal")) setTradeModal(false); });
+
+$("addStock").onclick = () => {
+  const entered = prompt("Enter the stock symbol, for example AAPL:");
+  if (entered === null) return;
+  const symbol = entered.trim().toUpperCase();
+  if (!/^[A-Z0-9.-]{1,15}$/.test(symbol)) return alert("Enter a valid stock symbol.");
+  if (stocks.some(stock => stock.symbol === symbol)) return alert(`${symbol} is already in the portfolio.`);
+  stocks.push(normalizeStockState({symbol, current: 0, buyPrice: 0, invested: 0, growthGoal: .03, harvestRate: .20, minimumHarvest: 1, previousClose: 0}));
+  persist();
+  render();
+};
+$("setGoalForAll").onclick = () => {
+  const current = stocks.length ? (stocks[0].growthGoal * 100).toFixed(2) : "3";
+  const entered = prompt("Set the growth goal percentage for every stock:", current);
+  if (entered === null) return;
+  const value = Number(entered);
+  if (!Number.isFinite(value) || value < 0 || value > 100) return alert("Enter a percentage from 0 to 100.");
+  stocks.forEach(stock => { stock.growthGoal = value / 100; });
+  persist();
+  render();
+};
+
+$("exportData").onclick = () => {
+  const backup = {version: 4, exportedAt: new Date().toISOString(), stocks, trades, preferences: appSettings};
+  const url = URL.createObjectURL(new Blob([JSON.stringify(backup, null, 2)], {type: "application/json"}));
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = `harvester-turtle-backup-${localDay()}.json`;
+  anchor.click();
+  setTimeout(() => URL.revokeObjectURL(url), 0);
+};
+$("importData").onchange = async event => {
+  try {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+    const data = JSON.parse(await file.text());
+    const importedStocks = Array.isArray(data) ? data : data && data.stocks;
+    const importedTrades = Array.isArray(data) ? [] : data && data.trades;
+    if (!Array.isArray(importedStocks) || !Array.isArray(importedTrades)) throw new Error();
+    const cleanStocks = importedStocks.map(normalizeStockState).filter(stock => stock.symbol);
+    const cleanTrades = importedTrades.map(normalizeTrade).filter(isValidTrade);
+    if (cleanStocks.length !== importedStocks.length || cleanTrades.length !== importedTrades.length || calculateLedger(cleanTrades, appSettings.taxRate).hasUnmatchedSales) throw new Error();
+    if (!confirm("Replace the current portfolio and logs with this backup? A recovery copy will be kept on this device.")) return;
+    localStorage.setItem(`harvesterImportBackup-${Date.now()}`, JSON.stringify({version: 4, savedAt: stateSavedAt, stocks, trades, preferences: appSettings}));
+    stocks = cleanStocks;
+    trades = migrateOpeningPositions(cleanStocks, cleanTrades);
+    if (data.preferences) {
+      appSettings.dailyRefreshLimit = Math.min(100, Math.max(1, Number(data.preferences.dailyRefreshLimit) || appSettings.dailyRefreshLimit));
+      const importedTaxRate = Number(data.preferences.taxRate);
+      if (Number.isFinite(importedTaxRate)) appSettings.taxRate = Math.min(1, Math.max(0, importedTaxRate));
     }
-    trades=nextTrades;if(tradeId.value===deleteId)resetTradeForm();renderTrades();save();
+    persist();
+    render();
+    renderTrades();
+  } catch {
+    alert("That file is not a valid Harvester Turtle backup.");
+  } finally {
+    event.target.value = "";
   }
-});
-resetTradeForm();
-addStock.onclick=()=>{
-  const entered=prompt("Enter the stock symbol, for example AAPL:");if(entered===null)return;
-  const symbol=entered.trim().toUpperCase();
-  if(!/^[A-Z0-9.-]{1,15}$/.test(symbol))return alert("Enter a valid stock symbol.");
-  stocks.push(normalizeStock({symbol,current:0,buyPrice:0,invested:0,growthGoal:.03,harvestRate:.20,minimumHarvest:1,previousClose:0}));render();
 };
-exportData.onclick=()=>{
-  const backup={version:3,exportedAt:new Date().toISOString(),stocks,trades};
-  const url=URL.createObjectURL(new Blob([JSON.stringify(backup,null,2)],{type:"application/json"}));
-  const anchor=document.createElement("a");anchor.href=url;anchor.download="harvester-turtle-data.json";anchor.click();setTimeout(()=>URL.revokeObjectURL(url),0);
-};
-importData.onchange=async event=>{
-  try{
-    const file=event.target.files&&event.target.files[0];if(!file)return;
-    const data=JSON.parse(await file.text());
-    const importedStocks=Array.isArray(data)?data:data&&data.stocks;
-    const importedTrades=Array.isArray(data)?[]:data&&data.trades;
-    if(!Array.isArray(importedStocks)||!Array.isArray(importedTrades))throw new Error();
-    const cleanStocks=importedStocks.map(normalizeStock).filter(stock=>stock.symbol);
-    const cleanTrades=importedTrades.map(normalizeTrade).filter(isValidTrade);
-    if(cleanStocks.length!==importedStocks.length||cleanTrades.length!==importedTrades.length||calculateLedger(cleanTrades).hasUnmatchedSales)throw new Error();
-    stocks=cleanStocks;trades=cleanTrades;render();renderTrades();
-  }catch{alert("That file is not valid Harvester Turtle data.")}finally{event.target.value=""}
-};
-const settingsModal=document.getElementById("settingsModal"),quoteApiUrl=document.getElementById("quoteApiUrl"),syncKeyInput=document.getElementById("syncKey"),syncStatus=document.getElementById("syncStatus"),priceStatus=document.getElementById("priceStatus");
-const priceProgressWrap=document.getElementById("priceProgressWrap"),priceProgress=document.getElementById("priceProgress"),priceProgressText=document.getElementById("priceProgressText"),priceProgressCount=document.getElementById("priceProgressCount");
-const menuToggle=document.getElementById("menuToggle"),appMenu=document.getElementById("appMenu");
-function setMenu(open){
-  appMenu.hidden=!open;
-  menuToggle.setAttribute("aria-expanded",String(open));
-  menuToggle.setAttribute("aria-label",open?"Close menu":"Open menu");
+
+const getApiUrl = () => localStorage.getItem("harvesterQuoteApi") || DEFAULT_API_URL;
+const getSyncKey = () => localStorage.getItem("harvesterSyncKey") || "";
+function setStatus(text, state = "") {
+  $("priceStatus").textContent = text;
+  $("priceStatus").className = `status ${state}`;
 }
-menuToggle.onclick=event=>{event.stopPropagation();setMenu(appMenu.hidden)};
-appMenu.addEventListener("click",event=>{event.stopPropagation();if(event.target.closest("button,.file-button,.menu-link"))setMenu(false)});
-document.addEventListener("click",()=>setMenu(false));
-document.addEventListener("keydown",event=>{if(event.key==="Escape")setMenu(false)});
-const DEFAULT_API_URL="https://summer-river-8271.atash1317.workers.dev";
-const getApiUrl=()=>localStorage.getItem("harvesterQuoteApi")||DEFAULT_API_URL;
-const getSyncKey=()=>localStorage.getItem("harvesterSyncKey")||"";
-function setStatus(text,state=""){priceStatus.textContent=text;priceStatus.className=`status ${state}`}
-let progressHideTimer;
-function updatePriceProgress(done,total,label="Refreshing prices…",countText=`${done} of ${total}`){
-  clearTimeout(progressHideTimer);
-  priceProgressWrap.hidden=false;
-  priceProgress.max=Math.max(total,1);
-  priceProgress.value=Math.min(done,total);
-  priceProgressText.textContent=label;
-  priceProgressCount.textContent=countText;
+function setSyncStatus(text, state = "") {
+  $("syncStatus").textContent = text;
+  $("syncStatus").className = `note ${state}`;
 }
-function finishPriceProgress(total,label,countText){
-  updatePriceProgress(total,total,label,countText);
-  progressHideTimer=setTimeout(()=>{priceProgressWrap.hidden=true},2200);
+function syncHeaders() {
+  return {"Content-Type": "application/json", "Authorization": `Bearer ${getSyncKey()}`};
 }
-function stopPriceProgress(done,total,label,countText){
-  updatePriceProgress(done,total,label,countText);
-  progressHideTimer=setTimeout(()=>{priceProgressWrap.hidden=true},5000);
-}
-function setSyncStatus(text,state=""){
-  syncStatus.textContent=text;
-  syncStatus.className=`note ${state}`;
-}
-function syncHeaders(){return {"Content-Type":"application/json","Authorization":`Bearer ${getSyncKey()}`}}
-async function cloudRequest(method,body){
-  const response=await fetch(`${getApiUrl()}/portfolio`,{method,headers:syncHeaders(),cache:"no-store",body:body?JSON.stringify(body):undefined});
-  const data=await response.json().catch(()=>({}));
-  if(!response.ok)throw new Error(data.error||`Cloud sync failed (HTTP ${response.status})`);
+async function cloudRequest(method, body) {
+  const response = await fetch(`${getApiUrl()}/portfolio`, {method, headers: syncHeaders(), cache: "no-store", body: body ? JSON.stringify(body) : undefined});
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || `Cloud sync failed (HTTP ${response.status})`);
   return data;
 }
-async function pushPortfolio(){
-  if(!getSyncKey())return;
-  setSyncStatus("Saving portfolio and trade log to Cloudflare…");
-  await cloudRequest("PUT",{stocks,trades});
-  setSyncStatus(`Portfolio and trade log synced at ${new Date().toLocaleTimeString([],{hour:"numeric",minute:"2-digit"})}.`,"positive");
+async function pushPortfolio() {
+  if (!getSyncKey()) return;
+  setSyncStatus("Saving portfolio and logs to Cloudflare…");
+  const result = await cloudRequest("PUT", {version: 4, stocks, trades, preferences: appSettings});
+  if (result.updatedAt) stateSavedAt = result.updatedAt;
+  setSyncStatus(`Synced at ${new Date().toLocaleTimeString([], {hour: "numeric", minute: "2-digit"})}.`, "positive");
 }
-function scheduleCloudSave(){
+function scheduleCloudSave() {
   clearTimeout(syncTimer);
-  syncTimer=setTimeout(()=>pushPortfolio().catch(error=>setSyncStatus(`Sync pending: ${error.message}`,"negative")),800);
+  syncTimer = setTimeout(() => pushPortfolio().catch(error => setSyncStatus(`Sync pending: ${error.message}`, "negative")), 800);
 }
-async function initializeCloudSync(){
-  if(!getSyncKey()){cloudReady=false;setSyncStatus("Cloud sync is not configured on this device.");return}
-  try{
-    setSyncStatus("Loading portfolio from Cloudflare…");
-    const data=await cloudRequest("GET");
-    if(data.portfolio&&Array.isArray(data.portfolio.stocks)){
-      stocks=data.portfolio.stocks.map(normalizeStock).filter(stock=>stock.symbol);
-      trades=Array.isArray(data.portfolio.trades)?data.portfolio.trades.map(normalizeTrade).filter(isValidTrade):[];
-      localStorage.setItem(storageKey,JSON.stringify(stocks));
-      localStorage.setItem(tradeStorageKey,JSON.stringify(trades));
-      render();renderTrades();
-      setSyncStatus("Portfolio and trade log loaded from Cloudflare.","positive");
-    }else{
+async function initializeCloudSync() {
+  if (!getSyncKey()) {
+    cloudReady = false;
+    setSyncStatus("Cloud sync is not configured on this device.");
+    return;
+  }
+  try {
+    setSyncStatus("Checking the cloud copy…");
+    const data = await cloudRequest("GET");
+    const remote = data.portfolio;
+    if (remote && Array.isArray(remote.stocks)) {
+      const remoteTime = new Date(remote.updatedAt || 0).getTime();
+      const localTime = new Date(stateSavedAt || 0).getTime();
+      if (localTime > remoteTime) {
+        cloudReady = true;
+        await pushPortfolio();
+      } else {
+        const remoteStocks = remote.stocks.map(normalizeStockState).filter(stock => stock.symbol);
+        const remoteTrades = Array.isArray(remote.trades) ? remote.trades.map(normalizeTrade).filter(isValidTrade) : [];
+        if (remoteStocks.length && !calculateLedger(remoteTrades, appSettings.taxRate).hasUnmatchedSales) {
+          stocks = remoteStocks;
+          trades = migrateOpeningPositions(remoteStocks, remoteTrades);
+          if (remote.preferences) {
+            appSettings.dailyRefreshLimit = Math.min(100, Math.max(1, Number(remote.preferences.dailyRefreshLimit) || appSettings.dailyRefreshLimit));
+            const remoteTaxRate = Number(remote.preferences.taxRate);
+            if (Number.isFinite(remoteTaxRate)) appSettings.taxRate = Math.min(1, Math.max(0, remoteTaxRate));
+          }
+          stateSavedAt = remote.updatedAt || stateSavedAt;
+          persist({sync: false});
+          render();
+          renderTrades();
+        }
+        setSyncStatus("Loaded the latest cloud copy.", "positive");
+      }
+    } else {
+      cloudReady = true;
       await pushPortfolio();
     }
-    cloudReady=true;
-  }catch(error){
-    cloudReady=false;
-    setSyncStatus(`Using this device only: ${error.message}`,"negative");
+    cloudReady = true;
+  } catch (error) {
+    cloudReady = false;
+    setSyncStatus(`Using this device only: ${error.message}`, "negative");
   }
 }
-const savedUpdateTime=localStorage.getItem("harvesterLastPriceUpdate");
-if(savedUpdateTime)setStatus(`Updated on: ${savedUpdateTime}`,"good");
-else setStatus("Prices update when this page is refreshed.");
-const wait=milliseconds=>new Promise(resolve=>setTimeout(resolve,milliseconds));
-function secondsUntilPriceReset(){
-  return Math.max(2,Math.ceil((60000-(Date.now()%60000))/1000)+2);
+
+function refreshUsage() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(REFRESH_KEY));
+    if (saved && saved.day === localDay()) return {day: saved.day, used: Math.max(0, Number(saved.used) || 0)};
+  } catch {}
+  return {day: localDay(), used: 0};
 }
-function quoteErrorMessage(data,symbol,response){
-  return String((data.errors&&data.errors[symbol])||data.message||data.error||`HTTP ${response.status}`);
+function updateRefreshCount() {
+  const usage = refreshUsage();
+  const remaining = Math.max(0, appSettings.dailyRefreshLimit - usage.used);
+  $("refreshRemaining").textContent = `${remaining} of ${appSettings.dailyRefreshLimit} left today`;
+  $("refreshPrices").disabled = priceRefreshRunning || remaining <= 0;
+  return remaining;
 }
-const isDailyPriceLimit=message=>/daily|per day|for the day|current day|today|midnight/i.test(message);
-const isMinutePriceLimit=message=>/429|minute|rate limit|too many requests|credit limit|api credits/i.test(message);
-async function waitForNextPriceGroup(done,total,priceLimitReached=false){
-  const label=priceLimitReached&&done===0?"Price service limit reached. Retrying…":"Waiting for next price group…";
-  for(let remaining=secondsUntilPriceReset();remaining>0;remaining--){
-    updatePriceProgress(done,total,label,`${done} of ${total} • ${remaining}s`);
-    await wait(1000);
+function recordRefresh() {
+  const usage = refreshUsage();
+  usage.used += 1;
+  localStorage.setItem(REFRESH_KEY, JSON.stringify(usage));
+  updateRefreshCount();
+}
+async function refreshPrices() {
+  if (priceRefreshRunning || updateRefreshCount() <= 0) return;
+  const base = getApiUrl();
+  const symbols = [...new Set(stocks.map(stock => stock.symbol).filter(symbol => /^[A-Z0-9.-]{1,15}$/.test(symbol)))];
+  if (!base) return setStatus("Open Price & App Settings and enter the Worker URL.", "bad");
+  if (!symbols.length) return setStatus("Add a stock first.", "bad");
+  priceRefreshRunning = true;
+  const rotation = symbols.length ? (refreshUsage().used * 8) % symbols.length : 0;
+  const requestSymbols = [...symbols.slice(rotation), ...symbols.slice(0, rotation)];
+  updateRefreshCount();
+  setStatus(`Refreshing ${symbols.length} stocks…`);
+  try {
+    const response = await fetch(`${base}${base.includes("?") ? "&" : "?"}symbols=${encodeURIComponent(requestSymbols.join(","))}`, {cache: "no-store"});
+    const data = await response.json().catch(() => ({}));
+    const quotes = data.quotes || {};
+    let completed = 0;
+    stocks.forEach(stock => {
+      const quote = quotes[stock.symbol];
+      if (!quote || !(Number(quote.price) > 0)) return;
+      completed += 1;
+      stock.current = Number(quote.price);
+      if (Number(quote.previousClose) > 0) stock.previousClose = Number(quote.previousClose);
+      if (Number(quote.high15) > 0) stock.high15 = Number(quote.high15);
+      if (Number(quote.low15) > 0) stock.low15 = Number(quote.low15);
+      stock.marketDataAt = data.updatedAt || new Date().toISOString();
+    });
+    if (!completed) throw new Error(data.error || "No prices were returned");
+    recordRefresh();
+    persist();
+    render();
+    const quotaText = data.quota && Number.isFinite(Number(data.quota.creditsLeft)) ? ` Provider credits left now: ${data.quota.creditsLeft}.` : "";
+    const failureCount = symbols.length - completed;
+    const time = new Date().toLocaleString([], {dateStyle: "medium", timeStyle: "short"});
+    localStorage.setItem("harvesterLastPriceUpdate", time);
+    setStatus(failureCount ? `Updated ${completed} of ${symbols.length} stocks. ${failureCount} reached a provider/data limit.${quotaText}` : `Updated all ${completed} stocks at ${time}.${quotaText}`, failureCount ? "bad" : "good");
+  } catch (error) {
+    setStatus(`Refresh failed: ${error.message}. Your saved prices were not removed.`, "bad");
+  } finally {
+    priceRefreshRunning = false;
+    updateRefreshCount();
   }
 }
-let priceRefreshRunning=false;
-settings.onclick=()=>{quoteApiUrl.value=getApiUrl();syncKeyInput.value=getSyncKey();settingsModal.classList.add("open")};
-syncNow.onclick=async()=>{
-  if(!getSyncKey()){settings.onclick();return}
-  try{await pushPortfolio()}catch(error){setSyncStatus(`Sync failed: ${error.message}`,"negative");settingsModal.classList.add("open")}
+$("refreshPrices").onclick = refreshPrices;
+
+function setMenu(open) {
+  $("appMenu").hidden = !open;
+  $("menuToggle").setAttribute("aria-expanded", String(open));
+  $("menuToggle").setAttribute("aria-label", open ? "Close menu" : "Open menu");
+}
+$("menuToggle").onclick = event => { event.stopPropagation(); setMenu($("appMenu").hidden); };
+$("appMenu").addEventListener("click", event => { event.stopPropagation(); if (event.target.closest("button,.file-button,.menu-link")) setMenu(false); });
+document.addEventListener("click", () => setMenu(false));
+document.addEventListener("keydown", event => {
+  if (event.key !== "Escape") return;
+  setMenu(false);
+  setTradeModal(false);
+  $("settingsModal").classList.remove("open");
+});
+
+$("settings").onclick = () => {
+  $("quoteApiUrl").value = getApiUrl();
+  $("syncKey").value = getSyncKey();
+  $("dailyRefreshLimit").value = appSettings.dailyRefreshLimit;
+  $("taxRate").value = appSettings.taxRate * 100;
+  $("settingsModal").classList.add("open");
 };
-closeSettings.onclick=()=>settingsModal.classList.remove("open");
-saveSettings.onclick=async()=>{
-  const url=quoteApiUrl.value.trim().replace(/\/$/,"");if(!/^https:\/\//i.test(url))return alert("Enter a secure HTTPS URL.");
-  const key=syncKeyInput.value.trim();if(key.length<16)return alert("Use a private sync key at least 16 characters long.");
-  localStorage.setItem("harvesterQuoteApi",url);
-  localStorage.setItem("harvesterSyncKey",key);
-  cloudReady=false;
+$("syncNow").onclick = async () => {
+  if (!getSyncKey()) return $("settings").onclick();
+  try { await pushPortfolio(); } catch (error) { setSyncStatus(`Sync failed: ${error.message}`, "negative"); $("settingsModal").classList.add("open"); }
+};
+$("closeSettings").onclick = () => $("settingsModal").classList.remove("open");
+$("settingsModal").addEventListener("click", event => { if (event.target === $("settingsModal")) $("settingsModal").classList.remove("open"); });
+$("saveSettings").onclick = async () => {
+  const url = $("quoteApiUrl").value.trim().replace(/\/$/, "");
+  if (!/^https:\/\//i.test(url)) return alert("Enter a secure HTTPS Worker URL.");
+  const key = $("syncKey").value.trim();
+  if (key && key.length < 16) return alert("Use a private sync key at least 16 characters long, or leave it blank to use device-only saving.");
+  const dailyLimit = Number($("dailyRefreshLimit").value);
+  const taxPercent = Number($("taxRate").value);
+  if (!Number.isInteger(dailyLimit) || dailyLimit < 1 || dailyLimit > 100) return alert("Daily refresh allowance must be a whole number from 1 to 100.");
+  if (!Number.isFinite(taxPercent) || taxPercent < 0 || taxPercent > 100) return alert("Estimated tax rate must be from 0 to 100.");
+  localStorage.setItem("harvesterQuoteApi", url);
+  if (key) localStorage.setItem("harvesterSyncKey", key); else localStorage.removeItem("harvesterSyncKey");
+  appSettings = {dailyRefreshLimit: dailyLimit, taxRate: taxPercent / 100};
+  persist({sync: false});
+  cloudReady = false;
   await initializeCloudSync();
-  if(cloudReady){settingsModal.classList.remove("open");refreshPrices(true)}
+  updateRefreshCount();
+  render();
+  renderTrades();
+  $("settingsModal").classList.remove("open");
 };
-async function refreshPrices(openSettings=false){
-  const base=getApiUrl(),symbols=[...new Set(stocks.map(stock=>stock.symbol.trim().toUpperCase()).filter(symbol=>/^[A-Z0-9.-]{1,15}$/.test(symbol)))];
-  if(!base){setStatus("Automatic prices are not configured. You can enter prices manually or open Price Settings.","bad");if(openSettings)settingsModal.classList.add("open");return}
-  if(!symbols.length)return setStatus("Add a valid stock symbol first.","bad");
-  if(priceRefreshRunning){if(openSettings)setStatus("A price update is already running. Please wait for it to finish.");return}
-  priceRefreshRunning=true;
-  updatePriceProgress(0,symbols.length);
-  try{
-    const pending=[...symbols],attempts={},completed=new Set(),permanentFailures=new Set();
-    let round=0,priceLimitReached=false,dailyLimitReached=false,limitUnavailable=false;
-    while(pending.length&&!dailyLimitReached&&!limitUnavailable){
-      if(round>0){
-        await waitForNextPriceGroup(completed.size+permanentFailures.size,symbols.length,priceLimitReached);
-      }
-      priceLimitReached=false;
-      const batch=pending.splice(0,8);
-      const retrySymbols=[];
-      updatePriceProgress(completed.size+permanentFailures.size,symbols.length);
-      await Promise.all(batch.map(async symbol=>{
-        let quote,errorMessage="";
-        try{
-          const response=await fetch(`${base}${base.includes("?")?"&":"?"}symbols=${encodeURIComponent(symbol)}`,{cache:"no-store"});
-          const data=await response.json();
-          if(response.ok)quote=(data.quotes||{})[symbol];
-          if(!quote)errorMessage=quoteErrorMessage(data,symbol,response);
-        }catch(error){errorMessage=error.message||"Price request failed"}
-        if(quote&&Number(quote.price)>0){
-          completed.add(symbol);
-          stocks.forEach(stock=>{if(stock.symbol.toUpperCase()===symbol){stock.current=Number(quote.price);if(Number(quote.previousClose)>0)stock.previousClose=Number(quote.previousClose)}});
-          render();
-        }else if(isDailyPriceLimit(errorMessage)){
-          dailyLimitReached=true;
-          permanentFailures.add(symbol);
-        }else if(isMinutePriceLimit(errorMessage)){
-          priceLimitReached=true;
-          attempts[symbol]=(attempts[symbol]||0)+1;
-          if(attempts[symbol]<2)retrySymbols.push(symbol);
-          else{permanentFailures.add(symbol);limitUnavailable=true}
-        }else{
-          permanentFailures.add(symbol);
-        }
-        updatePriceProgress(completed.size+permanentFailures.size,symbols.length);
-      }));
-      if(retrySymbols.length)pending.unshift(...retrySymbols);
-      if(dailyLimitReached||limitUnavailable)pending.length=0;
-      round++;
-    }
-    if(dailyLimitReached){
-      if(completed.size){
-        const updatedTime=new Date().toLocaleTimeString([],{hour:"numeric",minute:"2-digit"});
-        localStorage.setItem("harvesterLastPriceUpdate",updatedTime);
-        setStatus(`Updated on: ${updatedTime}`,"good");
-      }else{
-        setStatus("Daily price limit reached. Existing prices were kept. Try again after the daily reset.","bad");
-      }
-      stopPriceProgress(completed.size+permanentFailures.size,symbols.length,"Daily price limit reached",`${completed.size} updated`);
-    }else if(limitUnavailable){
-      if(completed.size){
-        const updatedTime=new Date().toLocaleTimeString([],{hour:"numeric",minute:"2-digit"});
-        localStorage.setItem("harvesterLastPriceUpdate",updatedTime);
-        setStatus(`Updated on: ${updatedTime}`,"good");
-      }else{
-        setStatus("The price-service limit is still unavailable. Existing prices were kept. Try again later.","bad");
-      }
-      stopPriceProgress(completed.size+permanentFailures.size,symbols.length,"Price service unavailable",`${completed.size} updated`);
-    }else if(completed.size){
-      const updatedTime=new Date().toLocaleTimeString([],{hour:"numeric",minute:"2-digit"});
-      localStorage.setItem("harvesterLastPriceUpdate",updatedTime);
-      setStatus(`Updated on: ${updatedTime}`,"good");
-      finishPriceProgress(symbols.length,"Refresh complete",`${completed.size} updated`);
-    }else{
-      setStatus("Price update failed. Prices already received were kept.","bad");
-      stopPriceProgress(permanentFailures.size,symbols.length,"Refresh stopped","0 updated");
-    }
-  }catch(error){
-    setStatus(`Price update stopped: ${error.message}. Prices already received were kept.`,"bad");
-    stopPriceProgress(0,symbols.length,"Refresh stopped","Please try again");
-  }finally{
-    priceRefreshRunning=false;
-  }
-}
-updateSortHeaders();render();renderTrades();initializeCloudSync().then(()=>refreshPrices(false));
+
+const lastUpdate = localStorage.getItem("harvesterLastPriceUpdate");
+if (lastUpdate) setStatus(`Last refreshed: ${lastUpdate}. Prices change only when you press Refresh.`, "good");
+render();
+renderTrades();
+resetTradeForm();
+updateRefreshCount();
+initializeCloudSync();

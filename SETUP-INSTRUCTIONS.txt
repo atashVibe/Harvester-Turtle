@@ -23,7 +23,7 @@ PART 3 — GITHUB PAGES
    https://atashvibe.github.io/Harvester-Turtle/
 
 PART 4 — CONNECT EACH DEVICE
-1. Open Harvester Turtle and choose Price Settings.
+1. Open Harvester Turtle and choose Price & App Settings.
 2. Enter your Cloudflare Worker URL.
 3. Enter the same private PORTFOLIO_SYNC_KEY value you created in Cloudflare.
 4. Choose Save & Sync.
@@ -49,3 +49,5 @@ IMPORTANT
 - Never put TWELVE_DATA_API_KEY or PORTFOLIO_SYNC_KEY in GitHub files.
 - Anyone who knows PORTFOLIO_SYNC_KEY can read or replace the portfolio, so keep it private.
 - Market data may be delayed and Twelve Data request limits still apply.
+- Prices update only when Refresh is pressed. The daily refresh allowance in the app is configurable.
+- The Worker caches each 15-day range for six hours and returns Twelve Data credit information when the provider includes it.
