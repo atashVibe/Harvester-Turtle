@@ -1,5 +1,6 @@
 const { calculate, normalizeStock } = HarvesterCalculator;
 const { normalizeTrade, isValidTrade, sortTrades, calculateLedger } = HarvesterTrades;
+const { parseRobinhoodCsv, mergeRobinhoodEntries, buildRobinhoodCsv } = HarvesterRobinhoodCsv;
 const $ = id => document.getElementById(id);
 const clone = value => JSON.parse(JSON.stringify(value));
 const STATE_KEY = "harvesterStateV4";
@@ -405,7 +406,8 @@ const tradeForm = $("tradeForm");
 let fillingLimitId = "";
 function populateStockChoices() {
   const current = $("tradeSymbol").value;
-  $("tradeSymbol").innerHTML = stocks.map(stock => `<option value="${escapeHtml(stock.symbol)}">${escapeHtml(stock.symbol)}</option>`).join("");
+  const alphabetical = [...stocks].sort((left, right) => left.symbol.localeCompare(right.symbol, undefined, {numeric: true, sensitivity: "base"}));
+  $("tradeSymbol").innerHTML = alphabetical.map(stock => `<option value="${escapeHtml(stock.symbol)}">${escapeHtml(stock.symbol)}</option>`).join("");
   if (stocks.some(stock => stock.symbol === current)) $("tradeSymbol").value = current;
 }
 function setTradeMessage(message, tone = "") {
@@ -544,6 +546,7 @@ tradeForm.addEventListener("submit", event => {
     tradedAt: Number.isFinite(tradedDate.getTime()) ? tradedDate.toISOString() : "invalid",
     createdAt: existing ? existing.createdAt : new Date().toISOString(),
     source: existing ? existing.source : "log",
+    externalId: existing ? existing.externalId : "",
     note: $("tradeNote").value,
   });
   if (!isValidTrade(candidate)) return setTradeMessage(isDeposit ? "Enter a positive deposit amount and valid date." : "Choose a stock and enter positive shares, price, and a valid date.");
@@ -615,14 +618,67 @@ $("setGoalForAll").onclick = () => {
   render();
 };
 
-$("exportData").onclick = () => {
-  const backup = {version: 4, exportedAt: new Date().toISOString(), stocks, trades, preferences: appSettings};
-  const url = URL.createObjectURL(new Blob([JSON.stringify(backup, null, 2)], {type: "application/json"}));
+function downloadFile(contents, filename, type) {
+  const url = URL.createObjectURL(new Blob([contents], {type}));
   const anchor = document.createElement("a");
   anchor.href = url;
-  anchor.download = `harvester-turtle-backup-${localDay()}.json`;
+  anchor.download = filename;
   anchor.click();
   setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
+$("exportRobinhoodCsv").onclick = () => {
+  const result = buildRobinhoodCsv(trades);
+  if (!result.rowCount) return alert("There are no executed trades or deposits to export. Pending limits and opening balances are not Robinhood activity rows.");
+  downloadFile(result.csv, `harvester-turtle-robinhood-${localDay()}.csv`, "text/csv;charset=utf-8");
+  const skipped = [];
+  if (result.skippedPending) skipped.push(`${result.skippedPending} pending limit${result.skippedPending === 1 ? "" : "s"}`);
+  if (result.skippedOpening) skipped.push(`${result.skippedOpening} opening balance${result.skippedOpening === 1 ? "" : "s"}`);
+  if (skipped.length) setStatus(`Exported ${result.rowCount} Robinhood-format rows. Excluded ${skipped.join(" and ")}.`, "good");
+};
+
+$("importRobinhoodCsv").onchange = async event => {
+  try {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+    const parsed = parseRobinhoodCsv(await file.text());
+    const incoming = parsed.entries.map(normalizeTrade).filter(isValidTrade);
+    const {additions, duplicateCount} = mergeRobinhoodEntries(trades, incoming);
+    const symbolsToAdd = [...new Set(additions.filter(entry => entry.type !== "deposit").map(entry => entry.symbol))]
+      .filter(symbol => !stocks.some(stock => stock.symbol === symbol))
+      .sort((left, right) => left.localeCompare(right));
+    const skippedDetails = [];
+    if (duplicateCount) skippedDetails.push(`${duplicateCount} duplicate${duplicateCount === 1 ? "" : "s"}`);
+    if (parsed.unsupportedRows) skippedDetails.push(`${parsed.unsupportedRows} unsupported row${parsed.unsupportedRows === 1 ? "" : "s"}`);
+    if (parsed.invalidRows) skippedDetails.push(`${parsed.invalidRows} invalid row${parsed.invalidRows === 1 ? "" : "s"}`);
+    if (!additions.length) {
+      alert(`No new supported activity was found.${skippedDetails.length ? ` Skipped ${skippedDetails.join(", ")}.` : ""}`);
+      return;
+    }
+    const previewTrades = [...trades, ...additions].map(normalizeTrade);
+    const unmatchedWarning = calculateLedger(previewTrades, appSettings.taxRate).hasUnmatchedSales
+      ? "\n\nSome sales do not have an earlier purchase in the available history, so their profit/loss will be incomplete until the missing earlier purchases are added."
+      : "";
+    const skippedText = skippedDetails.length ? `\nSkipped: ${skippedDetails.join(", ")}.` : "";
+    if (!confirm(`Add ${additions.length} new Robinhood log${additions.length === 1 ? "" : "s"} and ${symbolsToAdd.length} new stock${symbolsToAdd.length === 1 ? "" : "s"}?${skippedText}${unmatchedWarning}`)) return;
+    localStorage.setItem(`harvesterCsvImportBackup-${Date.now()}`, JSON.stringify({version: 4, savedAt: stateSavedAt, stocks, trades, preferences: appSettings}));
+    symbolsToAdd.forEach(symbol => stocks.push(normalizeStockState({symbol, current: 0, buyPrice: 0, invested: 0, growthGoal: .03, harvestRate: .20, minimumHarvest: 1, previousClose: 0})));
+    trades = previewTrades;
+    persist();
+    render();
+    renderTrades();
+    const unsupported = Object.entries(parsed.unsupportedCodes).map(([code, count]) => `${code} ${count}`).join(", ");
+    alert(`Imported ${additions.length} new log${additions.length === 1 ? "" : "s"}.${duplicateCount ? ` Skipped ${duplicateCount} duplicate${duplicateCount === 1 ? "" : "s"}.` : ""}${unsupported ? ` Unsupported activity left unchanged: ${unsupported}.` : ""}`);
+  } catch (error) {
+    alert(error && error.message ? error.message : "That file is not a valid Robinhood activity CSV.");
+  } finally {
+    event.target.value = "";
+  }
+};
+
+$("exportData").onclick = () => {
+  const backup = {version: 4, exportedAt: new Date().toISOString(), stocks, trades, preferences: appSettings};
+  downloadFile(JSON.stringify(backup, null, 2), `harvester-turtle-backup-${localDay()}.json`, "application/json");
 };
 $("importData").onchange = async event => {
   try {

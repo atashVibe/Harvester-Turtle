@@ -34,6 +34,20 @@
     const orderKind = type === "deposit" ? "cash" : legacyLimit ? "limit" : "market";
     const status = type !== "deposit" && orderKind === "limit" && source.status !== "executed" ? "pending" : "executed";
     const symbol = String(source.symbol || "").trim().toUpperCase();
+    const sourceType = source.source === "opening" ? "opening" : source.source === "robinhood" ? "robinhood" : "log";
+    const externalId = String(source.externalId || "").trim().slice(0, 120);
+    const rawRobinhood = source.robinhood && typeof source.robinhood === "object" ? source.robinhood : null;
+    const robinhood = rawRobinhood ? {
+      activityDate: String(rawRobinhood.activityDate || "").trim().slice(0, 40),
+      processDate: String(rawRobinhood.processDate || "").trim().slice(0, 40),
+      settleDate: String(rawRobinhood.settleDate || "").trim().slice(0, 40),
+      instrument: String(rawRobinhood.instrument || "").trim().toUpperCase().slice(0, 20),
+      description: String(rawRobinhood.description || "").trim().slice(0, 500),
+      transCode: String(rawRobinhood.transCode || "").trim().slice(0, 20),
+      quantity: String(rawRobinhood.quantity || "").trim().slice(0, 80),
+      price: String(rawRobinhood.price || "").trim().slice(0, 80),
+      amount: String(rawRobinhood.amount || "").trim().slice(0, 80),
+    } : undefined;
     return {
       id: String(source.id || `${symbol || "trade"}-${Date.now()}-${Math.random().toString(36).slice(2)}`),
       type,
@@ -43,10 +57,12 @@
       amount,
       orderKind,
       status,
-      source: source.source === "opening" ? "opening" : "log",
+      source: sourceType,
       note: String(source.note || "").trim().slice(0, 500),
       tradedAt,
       createdAt,
+      ...(externalId ? {externalId} : {}),
+      ...(robinhood ? {robinhood} : {}),
     };
   }
 

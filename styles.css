@@ -28,7 +28,7 @@ h1 { margin: 0; color: var(--navy); font-size: clamp(25px, 4vw, 36px); }
 .menu-wrap { position: relative; }
 .menu-toggle { display: grid; place-content: center; gap: 4px; width: 42px; height: 42px; padding: 0; }
 .menu-toggle span { display: block; width: 20px; height: 2px; border-radius: 2px; background: currentColor; }
-.toolbar { position: absolute; top: calc(100% + 8px); right: 0; z-index: 30; display: grid; width: 210px; padding: 8px; gap: 5px; background: #fff; border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 14px 35px rgba(16,42,67,.18); }
+.toolbar { position: absolute; top: calc(100% + 8px); right: 0; z-index: 30; display: grid; width: 230px; padding: 8px; gap: 5px; background: #fff; border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 14px 35px rgba(16,42,67,.18); }
 .toolbar[hidden] { display: none; }
 .toolbar button, .toolbar .file-button, .toolbar .menu-link { width: 100%; text-align: left; }
 button, .file-button, .menu-link { border: 1px solid var(--line); background: #fff; color: var(--ink); padding: 8px 11px; border-radius: 9px; font-weight: 750; }
@@ -78,10 +78,13 @@ tbody tr:nth-child(even) { background: #fbfcfe; }
 tbody tr:hover { background: #f2f7ff; }
 th:first-child, td:first-child { position: sticky; left: 0; z-index: 1; text-align: left; background: inherit; }
 th:first-child { z-index: 3; background: #edf2f7; }
+.portfolio-table tbody td:first-child { z-index: 4; background: #fff; box-shadow: 1px 0 0 var(--line); }
+.portfolio-table tbody tr:nth-child(even) td:first-child { background: #fbfcfe; }
+.portfolio-table tbody tr:hover td:first-child { background: #f2f7ff; }
 td input { width: 62px; border: 1px solid #cbd5e1; border-radius: 6px; padding: 5px 3px; text-align: right; }
 .symbol-cell { display: flex; align-items: center; gap: 5px; }
 .stock-symbol { min-width: 43px; font-weight: 850; color: var(--navy); }
-.signal-lights { display: inline-flex; gap: 2px; padding: 3px; border-radius: 9px; background: #d7dee8; }
+.signal-lights { display: inline-flex; flex-direction: column; gap: 2px; padding: 3px; border-radius: 9px; background: #d7dee8; }
 .signal { width: 8px; height: 8px; border-radius: 50%; background: #aeb9c7; }
 .signal.red.active { background: #e11d48; }.signal.yellow.active { background: #f4b400; }.signal.green.active { background: #16a34a; }
 .pill { display: inline-block; border-radius: 999px; padding: 3px 6px; background: #edf2f7; color: #486581; font-size: 10px; font-weight: 850; }

@@ -21,6 +21,8 @@ Harvester Turtle is a build-free, phone-friendly portfolio and trade tracker. It
 - `Final Harvest = realized profit - realized loss - estimated tax`.
 - `Harvest Price = Average Price × (1 + Growth Goal)`. It does not change when Invested Amount changes.
 - Harvest Cash appears only when the current price reaches Harvest Price and the calculated harvest meets Min. Cash.
+- Robinhood CSV import accepts the standard nine activity-report columns, merges Buy, Sell, and positive ACH deposit rows, and skips activity already imported. Unsupported activity is reported without changing it.
+- Robinhood CSV export uses the same nine-column layout. Pending limits and migrated opening balances stay in the complete JSON backup instead of being represented as completed Robinhood activity.
 
 Existing browser data is migrated automatically. Before migration, the previous local-storage values are retained in a recovery record. Existing manual holdings become Opening position lots so their cost basis is preserved for future FIFO sales.
 
@@ -44,7 +46,7 @@ Open `index.html` in a modern browser. There is no build step.
 Run the tests with:
 
 ```text
-node --test calculator.test.js trade-calculator.test.js cloudflare-worker/worker.test.mjs
+node --test calculator.test.js trade-calculator.test.js robinhood-csv.test.js cloudflare-worker/worker.test.mjs
 ```
 
 ## Cloudflare and GitHub Pages
