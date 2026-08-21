@@ -85,4 +85,15 @@ assert.match(manualOptionExport.csv, /"BTO","1","\$0\.13","\(\$13\.04\)"/);
 assert.match(manualOptionExport.csv, /"OEXP","1S","",""/);
 assert.equal(parseRobinhoodCsv(manualOptionExport.csv).entries.length, 2);
 
+const exportWithNotes = buildRobinhoodCsv([], [
+  {symbol: "AAPL", note: "Wait for earnings before adding shares."},
+  {symbol: "MSFT", note: ""},
+]);
+assert.equal(exportWithNotes.rowCount, 1);
+assert.equal(exportWithNotes.noteCount, 1);
+assert.match(exportWithNotes.csv, /"AAPL","Wait for earnings before adding shares\.","NOTE"/);
+const importedNotes = parseRobinhoodCsv(exportWithNotes.csv);
+assert.deepEqual(importedNotes.stockNotes, [{symbol: "AAPL", note: "Wait for earnings before adding shares."}]);
+assert.equal(importedNotes.unsupportedRows, 0);
+
 console.log("Robinhood CSV tests: OK");

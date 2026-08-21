@@ -30,14 +30,24 @@ function validStock(stock) {
   return stock && typeof stock === "object" &&
     /^[A-Z0-9.\-]{1,15}$/.test(String(stock.symbol || "").trim().toUpperCase()) &&
     ["current", "buyPrice", "invested", "previousClose", "growthGoal", "harvestRate", "minimumHarvest"].every(key => Number.isFinite(Number(stock[key])) && Number(stock[key]) >= 0) &&
-    ["high15", "low15"].every(key => stock[key] === undefined || (Number.isFinite(Number(stock[key])) && Number(stock[key]) >= 0));
+    ["high15", "low15"].every(key => stock[key] === undefined || (Number.isFinite(Number(stock[key])) && Number(stock[key]) >= 0)) &&
+    (stock.note === undefined || (typeof stock.note === "string" && stock.note.length <= 1000));
 }
 function validTrade(trade) {
-  if (!trade || typeof trade !== "object" || !["buy", "sell", "deposit"].includes(trade.type)) return false;
-  if (!(Number.isFinite(Number(trade.amount)) && Number(trade.amount) > 0)) return false;
+  const types = ["buy", "sell", "deposit", "option_buy", "option_sell", "option_expire"];
+  if (!trade || typeof trade !== "object" || !types.includes(trade.type)) return false;
+  const expiration = trade.type === "option_expire";
+  if (!(Number.isFinite(Number(trade.amount)) && (expiration ? Number(trade.amount) === 0 : Number(trade.amount) > 0))) return false;
   if (!Number.isFinite(new Date(trade.tradedAt).getTime())) return false;
   if (trade.note !== undefined && (typeof trade.note !== "string" || trade.note.length > 500)) return false;
   if (trade.type === "deposit") return true;
+  const option = trade.type.startsWith("option_");
+  if (option) return /^[A-Z0-9.\-]{1,15}$/.test(String(trade.symbol || "").trim().toUpperCase()) &&
+    Number.isFinite(Number(trade.shares)) && Number(trade.shares) > 0 &&
+    (expiration || (Number.isFinite(Number(trade.pricePerShare)) && Number(trade.pricePerShare) > 0)) &&
+    typeof trade.optionContract === "string" && trade.optionContract.length > 0 && trade.optionContract.length <= 300 &&
+    (trade.orderKind === undefined || trade.orderKind === "option") &&
+    (trade.status === undefined || trade.status === "executed");
   return /^[A-Z0-9.\-]{1,15}$/.test(String(trade.symbol || "").trim().toUpperCase()) &&
     ["shares", "pricePerShare"].every(key => Number.isFinite(Number(trade[key])) && Number(trade[key]) > 0) &&
     (trade.orderKind === undefined || ["market", "limit"].includes(trade.orderKind)) &&

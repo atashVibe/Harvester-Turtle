@@ -41,21 +41,23 @@ const pendingLimit = {
   pricePerShare: 250, orderKind: "limit", status: "pending", tradedAt: "2026-01-02T10:00:00.000Z", createdAt: "2026-01-02T10:00:00.000Z",
 };
 const deposit = {id: "deposit-1", type: "deposit", amount: 1000, tradedAt: "2026-01-01T09:00:00.000Z", note: "Transfer"};
+const optionBuy = {id: "option-1", type: "option_buy", symbol: "F", optionContract: "F 8/7/2026 Put $14.00", shares: 1, pricePerShare: 0.06, amount: 6.04, orderKind: "option", status: "executed", tradedAt: "2026-07-29T12:00:00.000Z"};
+const optionExpiration = {id: "option-2", type: "option_expire", symbol: "F", optionContract: "F 8/7/2026 Put $14.00", shares: 1, pricePerShare: 0, amount: 0, orderKind: "option", status: "executed", tradedAt: "2026-08-07T12:00:00.000Z"};
 const preferences = {dailyRefreshLimit: 20, taxRate: 0.30};
 const database = createDatabase();
 const env = { DB: database, PORTFOLIO_SYNC_KEY: "a-private-sync-key" };
 const headers = { "Content-Type": "application/json", Authorization: "Bearer a-private-sync-key" };
 
 const putResponse = await worker.fetch(new Request("https://example.test/portfolio", {
-  method: "PUT", headers, body: JSON.stringify({ stocks: [stock], trades: [trade, pendingLimit, deposit], preferences }),
+  method: "PUT", headers, body: JSON.stringify({ stocks: [{...stock, note: "Watch earnings"}], trades: [trade, pendingLimit, deposit, optionBuy, optionExpiration], preferences }),
 }), env);
 assert.equal(putResponse.status, 200);
 
 const getResponse = await worker.fetch(new Request("https://example.test/portfolio", { headers }), env);
 assert.equal(getResponse.status, 200);
 const saved = await getResponse.json();
-assert.deepEqual(saved.portfolio.stocks, [stock]);
-assert.deepEqual(saved.portfolio.trades, [trade, pendingLimit, deposit]);
+assert.deepEqual(saved.portfolio.stocks, [{...stock, note: "Watch earnings"}]);
+assert.deepEqual(saved.portfolio.trades, [trade, pendingLimit, deposit, optionBuy, optionExpiration]);
 assert.deepEqual(saved.portfolio.preferences, preferences);
 
 const emptyPreferences = {dailyRefreshLimit: 12, taxRate: 0.25};

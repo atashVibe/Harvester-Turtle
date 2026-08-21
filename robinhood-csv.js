@@ -106,6 +106,7 @@
     if (!HEADERS.every(header => headers.includes(header))) throw new Error("This is not a Robinhood activity CSV.");
     const headerIndexes = Object.fromEntries(HEADERS.map(header => [header, headers.indexOf(header)]));
     const entries = [];
+    const stockNotes = [];
     const unsupportedCodes = {};
     const occurrences = new Map();
     let blankRows = 0;
@@ -119,7 +120,7 @@
       }
       const code = cleanText(row["Trans Code"], 20);
       const normalizedCode = code.toLowerCase();
-      if (!["buy", "sell", "ach", "lb", "ls", "bto", "stc", "oexp"].includes(normalizedCode)) {
+      if (!["buy", "sell", "ach", "lb", "ls", "bto", "stc", "oexp", "note"].includes(normalizedCode)) {
         unsupportedCodes[code || "Blank code"] = (unsupportedCodes[code || "Blank code"] || 0) + 1;
         return;
       }
@@ -130,6 +131,17 @@
       const occurrence = (occurrences.get(externalId) || 0) + 1;
       occurrences.set(externalId, occurrence);
       const metadata = robinhoodMetadata(row);
+
+      if (normalizedCode === "note") {
+        const symbol = cleanText(row.Instrument, 20).toUpperCase();
+        const note = cleanText(row.Description, 1000);
+        if (!/^[A-Z0-9.-]{1,15}$/.test(symbol) || !note) {
+          invalidRows += 1;
+          return;
+        }
+        stockNotes.push({symbol, note});
+        return;
+      }
 
       if (normalizedCode === "ach") {
         const amount = parseMoney(row.Amount);
@@ -217,6 +229,7 @@
 
     return {
       entries,
+      stockNotes,
       unsupportedCodes,
       unsupportedRows: Object.values(unsupportedCodes).reduce((sum, count) => sum + count, 0),
       invalidRows,
@@ -322,9 +335,10 @@
     };
   }
 
-  function buildRobinhoodCsv(trades) {
+  function buildRobinhoodCsv(trades, stocks = []) {
     const rows = [];
     let pendingCount = 0;
+    let noteCount = 0;
     let skippedOpening = 0;
     (Array.isArray(trades) ? trades : []).forEach(entry => {
       if (!entry || entry.source === "opening") {
@@ -335,9 +349,20 @@
       if (entry.status === "pending") pendingCount += 1;
       rows.push(metadataRow(entry) || generatedRow(entry));
     });
+    (Array.isArray(stocks) ? stocks : []).forEach(stock => {
+      const symbol = cleanText(stock && stock.symbol, 20).toUpperCase();
+      const note = cleanText(stock && stock.note, 1000);
+      if (!/^[A-Z0-9.-]{1,15}$/.test(symbol) || !note) return;
+      const date = formatDate(new Date());
+      rows.push({
+        "Activity Date": date, "Process Date": date, "Settle Date": date, Instrument: symbol,
+        Description: note, "Trans Code": "NOTE", Quantity: "", Price: "", Amount: "",
+      });
+      noteCount += 1;
+    });
     rows.sort((left, right) => new Date(parseDate(right["Activity Date"])) - new Date(parseDate(left["Activity Date"])));
     const lines = [HEADERS.map(csvField).join(","), ...rows.map(row => HEADERS.map(header => csvField(row[header])).join(","))];
-    return {csv: `${lines.join("\r\n")}\r\n`, rowCount: rows.length, pendingCount, skippedOpening};
+    return {csv: `${lines.join("\r\n")}\r\n`, rowCount: rows.length, pendingCount, noteCount, skippedOpening};
   }
 
   return {HEADERS, parseCsv, parseMoney, parseRobinhoodCsv, mergeRobinhoodEntries, buildRobinhoodCsv};

@@ -45,6 +45,7 @@ function normalizeStockState(stock) {
     high15: Math.max(0, Number(stock && stock.high15) || 0),
     low15: Math.max(0, Number(stock && stock.low15) || 0),
     marketDataAt: String((stock && stock.marketDataAt) || ""),
+    note: String((stock && stock.note) || "").slice(0, 1000),
   };
 }
 
@@ -275,7 +276,7 @@ function render() {
     totalProfitAmount += calculated.profit;
     totalHarvestAmount += calculated.harvestCash;
     $("rows").insertAdjacentHTML("beforeend", `<tr>
-      <td><div class="symbol-cell">${signalLights(calculated)}<span class="stock-symbol" title="${escapeHtml(stock.symbol)}">${escapeHtml(stock.symbol)}</span></div></td>
+      <td><div class="symbol-cell">${signalLights(calculated)}<button class="stock-symbol ${stock.note ? "has-note" : ""}" data-stock-note="${escapeHtml(stock.id)}" title="${stock.note ? "Read or edit note" : "Add a note"}" aria-label="Open note for ${escapeHtml(stock.symbol)}">${escapeHtml(stock.symbol)}</button></div></td>
       <td>${stockInput(stock, "current", stock.current.toFixed(2))}</td>
       <td>${stockInput(stock, "buyPrice", averagePrice.toFixed(2), {readonly: loggedBasis})}</td>
       <td>${loggedBasis ? money(displayedInvested) : stockInput(stock, "invested", displayedInvested.toFixed(2))}</td>
@@ -299,6 +300,7 @@ function render() {
   $("totalValue").className = totalValueAmount >= totalInvestedAmount ? "positive" : "negative";
   $("totalProfit").className = totalProfitAmount >= 0 ? "positive" : "negative";
   $("totalDeposited").textContent = money(ledger.summary.totalDeposited);
+  $("summaryPendingBuy").textContent = money(ledger.summary.committedBuyAmount);
   $("stockRealizedProfit").textContent = money(ledger.summary.realizedProfitLoss);
   $("stockRealizedProfit").className = ledger.summary.realizedProfitLoss >= 0 ? "positive" : "negative";
   $("optionRealizedProfit").textContent = money(ledger.summary.optionRealizedProfitLoss);
@@ -423,6 +425,11 @@ $("rows").addEventListener("keydown", event => {
 });
 $("rows").addEventListener("change", event => { if (event.target.dataset.key) render(); });
 $("rows").addEventListener("click", event => {
+  const noteId = event.target.dataset.stockNote;
+  if (noteId) {
+    openStockNote(noteId);
+    return;
+  }
   const id = event.target.dataset.remove;
   if (!id) return;
   const stock = stocks.find(item => item.id === id);
@@ -579,6 +586,38 @@ tradeForm.addEventListener("input", event => {
   if (event.target === $("tradeShares") || event.target === $("tradePrice")) updateTradeAmount();
   setTradeMessage("");
 });
+
+let activeStockNoteId = "";
+function updateStockNoteCount() {
+  $("stockNoteCount").textContent = `${$("stockNoteText").value.length} / 1000`;
+}
+function setStockNoteModal(open) {
+  $("stockNoteModal").classList.toggle("open", open);
+  if (!open) activeStockNoteId = "";
+}
+function openStockNote(stockId) {
+  const stock = stocks.find(item => item.id === stockId);
+  if (!stock) return;
+  activeStockNoteId = stock.id;
+  $("stockNoteTitle").textContent = `${stock.symbol} Note`;
+  $("stockNoteText").value = stock.note || "";
+  updateStockNoteCount();
+  setStockNoteModal(true);
+  requestAnimationFrame(() => $("stockNoteText").focus());
+}
+$("stockNoteText").addEventListener("input", updateStockNoteCount);
+$("closeStockNote").onclick = () => setStockNoteModal(false);
+$("cancelStockNote").onclick = () => setStockNoteModal(false);
+$("stockNoteModal").addEventListener("click", event => { if (event.target === $("stockNoteModal")) setStockNoteModal(false); });
+$("saveStockNote").onclick = () => {
+  const stock = stocks.find(item => item.id === activeStockNoteId);
+  if (!stock) return setStockNoteModal(false);
+  stock.note = $("stockNoteText").value.slice(0, 1000);
+  persist();
+  render();
+  setStockNoteModal(false);
+  setStatus(`${stock.symbol} note saved.`, "good");
+};
 $("tradeType").addEventListener("change", () => { updateTradeMode(); setTradeMessage(""); });
 $("tradeSort").addEventListener("change", renderTrades);
 $("cancelTradeEdit").addEventListener("click", () => resetTradeForm());
@@ -699,26 +738,32 @@ function downloadFile(contents, filename, type) {
 }
 
 $("exportRobinhoodCsv").onclick = () => {
-  const result = buildRobinhoodCsv(trades);
-  if (!result.rowCount) return alert("There are no trades, deposits, or pending limits to export.");
+  const result = buildRobinhoodCsv(trades, stocks);
+  if (!result.rowCount) return alert("There are no trades, deposits, pending limits, or stock notes to export.");
   downloadFile(result.csv, `harvester-turtle-data-${localDay()}.csv`, "text/csv;charset=utf-8");
   const pendingText = result.pendingCount ? ` It includes ${result.pendingCount} pending limit${result.pendingCount === 1 ? "" : "s"} as LB/LS rows.` : "";
   const openingText = result.skippedOpening ? ` ${result.skippedOpening} app-generated opening balance${result.skippedOpening === 1 ? " was" : "s were"} not included because they are not Robinhood activity.` : "";
-  setStatus(`Exported ${result.rowCount} trade, deposit, and pending rows to CSV.${pendingText}${openingText}`, "good");
+  const noteText = result.noteCount ? ` It includes ${result.noteCount} stock note${result.noteCount === 1 ? "" : "s"}.` : "";
+  setStatus(`Exported ${result.rowCount} data rows to CSV.${pendingText}${noteText}${openingText}`, "good");
 };
 
 async function importRobinhoodFile(file) {
   const parsed = parseRobinhoodCsv(await file.text());
   const incoming = parsed.entries.map(normalizeTrade).filter(isValidTrade);
   const {additions, duplicateCount} = mergeRobinhoodEntries(trades, incoming);
-  const symbolsToAdd = [...new Set(additions.filter(entry => entry.type !== "deposit").map(entry => entry.symbol))]
+  const importedNotes = Array.isArray(parsed.stockNotes) ? parsed.stockNotes : [];
+  const symbolsToAdd = [...new Set([...additions.filter(entry => entry.type !== "deposit").map(entry => entry.symbol), ...importedNotes.map(item => item.symbol)])]
     .filter(symbol => !stocks.some(stock => stock.symbol === symbol))
     .sort((left, right) => left.localeCompare(right));
   const skippedDetails = [];
   if (duplicateCount) skippedDetails.push(`${duplicateCount} duplicate${duplicateCount === 1 ? "" : "s"}`);
   if (parsed.unsupportedRows) skippedDetails.push(`${parsed.unsupportedRows} unsupported row${parsed.unsupportedRows === 1 ? "" : "s"}`);
   if (parsed.invalidRows) skippedDetails.push(`${parsed.invalidRows} invalid row${parsed.invalidRows === 1 ? "" : "s"}`);
-  if (!additions.length) {
+  const noteUpdates = importedNotes.filter(item => {
+    const stock = stocks.find(existing => existing.symbol === item.symbol);
+    return !stock || stock.note !== item.note;
+  });
+  if (!additions.length && !noteUpdates.length) {
     alert(`No new supported activity was found.${skippedDetails.length ? ` Skipped ${skippedDetails.join(", ")}.` : ""}`);
     return;
   }
@@ -728,15 +773,20 @@ async function importRobinhoodFile(file) {
     ? "\n\nSome stock sales or option closings do not have an earlier matching purchase, so their profit/loss will be incomplete until the missing purchases are added."
     : "";
   const skippedText = skippedDetails.length ? `\nSkipped: ${skippedDetails.join(", ")}.` : "";
-  if (!confirm(`Add ${additions.length} new CSV log row${additions.length === 1 ? "" : "s"} and ${symbolsToAdd.length} new stock${symbolsToAdd.length === 1 ? "" : "s"}? Existing logs and pending limits will be kept.${skippedText}${unmatchedWarning}`)) return;
+  const notesText = noteUpdates.length ? ` Restore ${noteUpdates.length} stock note${noteUpdates.length === 1 ? "" : "s"}.` : "";
+  if (!confirm(`Add ${additions.length} new CSV log row${additions.length === 1 ? "" : "s"} and ${symbolsToAdd.length} new stock${symbolsToAdd.length === 1 ? "" : "s"}?${notesText} Existing logs and pending limits will be kept.${skippedText}${unmatchedWarning}`)) return;
   localStorage.setItem(`harvesterCsvImportBackup-${Date.now()}`, JSON.stringify({version: 4, savedAt: stateSavedAt, stocks, trades, preferences: appSettings}));
   symbolsToAdd.forEach(symbol => stocks.push(normalizeStockState({symbol, current: 0, buyPrice: 0, invested: 0, growthGoal: .03, harvestRate: .20, minimumHarvest: 1, previousClose: 0})));
+  noteUpdates.forEach(item => {
+    const stock = stocks.find(existing => existing.symbol === item.symbol);
+    if (stock) stock.note = item.note.slice(0, 1000);
+  });
   trades = previewTrades;
   persist();
   render();
   renderTrades();
   const unsupported = Object.entries(parsed.unsupportedCodes).map(([code, count]) => `${code} ${count}`).join(", ");
-  alert(`Imported ${additions.length} new log row${additions.length === 1 ? "" : "s"}.${duplicateCount ? ` Skipped ${duplicateCount} duplicate${duplicateCount === 1 ? "" : "s"}.` : ""}${unsupported ? ` Unsupported activity left unchanged: ${unsupported}.` : ""}`);
+  alert(`Imported ${additions.length} new log row${additions.length === 1 ? "" : "s"}.${noteUpdates.length ? ` Restored ${noteUpdates.length} stock note${noteUpdates.length === 1 ? "" : "s"}.` : ""}${duplicateCount ? ` Skipped ${duplicateCount} duplicate${duplicateCount === 1 ? "" : "s"}.` : ""}${unsupported ? ` Unsupported activity left unchanged: ${unsupported}.` : ""}`);
 }
 
 $("importData").onchange = async event => {
@@ -957,6 +1007,7 @@ document.addEventListener("keydown", event => {
   if (event.key !== "Escape") return;
   setMenu(false);
   setTradeModal(false);
+  setStockNoteModal(false);
   $("settingsModal").classList.remove("open");
 });
 

@@ -9,6 +9,7 @@ Harvester Turtle is a build-free, phone-friendly portfolio and trade tracker. It
 - Deposits and total deposited cash.
 - Pending limit buys and sells, kept separate from executed trades.
 - FIFO cost basis for stocks and matching option contracts, including partial-lot sales.
+- A 1,000-character note for each tracked stock; click a ticker to read or edit it.
 - Average open cost, realized profit, realized loss, estimated tax, and Final Harvest.
 - The latest current price, previous close, and High/Low across 15 daily market bars.
 
@@ -22,9 +23,11 @@ Harvester Turtle is a build-free, phone-friendly portfolio and trade tracker. It
 - `Harvest Price = Average Price × (1 + Growth Goal)`. It does not change when Invested Amount changes.
 - Harvest Cash appears only when the current price reaches Harvest Price and the calculated harvest meets Min. Cash.
 - CSV import accepts Robinhood's standard nine activity-report columns, merges Buy, Sell, BTO, STC, OEXP, positive ACH deposit, and Harvester Turtle LB/LS pending-limit rows, and skips activity already imported. Unsupported activity is reported without changing it.
-- CSV export uses the same nine-column layout and includes every executed stock/option trade, deposit, and pending limit. Pending buys use Trans Code `LB`; pending sells use `LS`. Portfolio display settings are not included.
+- CSV export uses the same nine-column layout and includes every executed stock/option trade, deposit, pending limit, and stock note. Pending buys use Trans Code `LB`; pending sells use `LS`; stock notes use `NOTE`. Portfolio display settings are not included.
 
 Existing browser data is migrated automatically. Before migration, the previous local-storage values are retained in a recovery record. Existing manual holdings become Opening position lots so their cost basis is preserved for future FIFO sales.
+
+Logs and stock notes are saved in the browser first. When a private sync key is configured they are also copied to the user's Cloudflare D1 portfolio record. The CSV export provides a separate portable backup.
 
 ## Price refresh and limits
 

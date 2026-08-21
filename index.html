@@ -51,13 +51,19 @@
 
   <section class="summary harvest-summary" aria-label="Realized results">
     <div class="metric"><small>Total Deposited ($)</small><strong id="totalDeposited">0.00</strong></div>
-    <div class="metric"><small>Stock P/L ($)</small><strong id="stockRealizedProfit">0.00</strong></div>
-    <div class="metric"><small>Options P/L ($)</small><strong id="optionRealizedProfit">0.00</strong></div>
-    <div class="metric"><small>Combined P/L ($)</small><strong id="tradeRealizedProfit">0.00</strong></div>
-    <div class="metric"><small>Estimated Tax (<span id="taxRateLabel">30</span>%) ($)</small><strong id="estimatedTax">0.00</strong></div>
+    <div class="metric"><small>Pending Buys ($)</small><strong id="summaryPendingBuy">0.00</strong></div>
     <div class="metric accent"><small>Final Harvest ($)</small><strong id="finalHarvest">0.00</strong></div>
   </section>
-  <p class="summary-note">Estimated tax is a user-configured planning estimate, not tax advice. It applies only to positive net realized gains after realized losses.</p>
+  <details class="report-details">
+    <summary>Show P/L and tax details</summary>
+    <section class="summary report-detail-summary" aria-label="Profit, loss, and tax details">
+      <div class="metric"><small>Stock P/L ($)</small><strong id="stockRealizedProfit">0.00</strong></div>
+      <div class="metric"><small>Options P/L ($)</small><strong id="optionRealizedProfit">0.00</strong></div>
+      <div class="metric"><small>Combined P/L ($)</small><strong id="tradeRealizedProfit">0.00</strong></div>
+      <div class="metric"><small>Estimated Tax (<span id="taxRateLabel">30</span>%) ($)</small><strong id="estimatedTax">0.00</strong></div>
+    </section>
+    <p class="summary-note">Estimated tax is a user-configured planning estimate, not tax advice. It applies only to positive net realized gains after realized losses.</p>
+  </details>
 
   <div class="portfolio-table-section">
   <div class="table-scroll-controls" id="tableScrollControls" hidden>
@@ -89,6 +95,19 @@
 <div class="floating-table-header" id="floatingTableHeader" hidden>
   <div class="floating-table-header-scroll" id="floatingTableHeaderScroll">
     <table class="floating-table-header-table" id="floatingTableHeaderTable"><thead id="floatingTableHead"></thead></table>
+  </div>
+</div>
+
+<div class="modal stock-note-modal" id="stockNoteModal" role="dialog" aria-modal="true" aria-labelledby="stockNoteTitle">
+  <div class="modal-card stock-note-card">
+    <div class="modal-heading">
+      <div><h2 id="stockNoteTitle">Stock Note</h2><p>Your private reminder for this stock.</p></div>
+      <button class="icon-button" id="closeStockNote" aria-label="Close stock note">×</button>
+    </div>
+    <label for="stockNoteText">Note</label>
+    <textarea id="stockNoteText" maxlength="1000" rows="10" placeholder="Write your note or reminder here…"></textarea>
+    <div class="stock-note-footer"><small id="stockNoteCount">0 / 1000</small><div class="modal-actions"><button id="cancelStockNote">Cancel</button><button class="primary" id="saveStockNote">Save Note</button></div></div>
+    <p class="note stock-note-storage">Saved on this device, included in cloud sync, and preserved in CSV exports.</p>
   </div>
 </div>
 
@@ -188,9 +207,9 @@
   </div>
 </div>
 
-<script src="calculator.js?v=20260820-12"></script>
-<script src="trade-calculator.js?v=20260820-12"></script>
-<script src="robinhood-csv.js?v=20260820-12"></script>
-<script src="app.js?v=20260820-12"></script>
+<script src="calculator.js?v=20260820-13"></script>
+<script src="trade-calculator.js?v=20260820-13"></script>
+<script src="robinhood-csv.js?v=20260820-13"></script>
+<script src="app.js?v=20260820-13"></script>
 </body>
 </html>

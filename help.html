@@ -27,7 +27,8 @@
         <li>Use the three-line menu to add the stocks you follow.</li>
         <li>Press <strong>Log</strong> to record a buy, sale, deposit, or pending limit order.</li>
         <li>Press <strong>Refresh Prices</strong> when you want new market prices. Reloading the webpage is separate, unlimited, and does not use a price update.</li>
-        <li>Use <strong>Export Data (CSV)</strong> periodically. It uses Robinhood's column layout and includes executed activity plus pending LB/LS orders. Exporting never changes or deletes app data.</li>
+        <li>Use <strong>Export Data (CSV)</strong> periodically. It uses Robinhood's column layout and includes executed activity, pending LB/LS orders, and stock NOTE rows. Exporting never changes or deletes app data.</li>
+        <li>Tap a stock ticker to add or read its personal note. A dot beside the ticker means a note is saved.</li>
       </ol>
     </section>
 
@@ -82,7 +83,7 @@
       <h2>Menu options</h2>
       <dl>
         <dt>Set Goal for All</dt><dd>Changes the growth goal for every tracked stock at once.</dd>
-        <dt>Export Data (CSV)</dt><dd>Downloads one Robinhood-shaped CSV containing executed Buy, Sell, BTO, STC, OEXP, and ACH deposit rows plus pending limit orders. Pending buys use Trans Code LB and pending sells use LS; their date, stock, quantity, price, amount, and note are preserved.</dd>
+        <dt>Export Data (CSV)</dt><dd>Downloads one Robinhood-shaped CSV containing executed Buy, Sell, BTO, STC, OEXP, and ACH deposit rows plus pending limits and stock notes. Pending buys use Trans Code LB, pending sells use LS, and stock notes use NOTE.</dd>
         <dt>Import Data (CSV)</dt><dd>Accepts Robinhood reports and Harvester Turtle exports with the same nine columns. It imports stock activity, option BTO/STC/OEXP activity, deposits, and pending orders; keeps existing logs; adds missing stock symbols; and skips duplicates. Unsupported Robinhood activity is reported without being misclassified.</dd>
         <dt>Sync Now</dt><dd>Checks Cloudflare for newer changes, then safely loads or saves the latest copy. Stocks, deletions, logs, and app settings sync between devices using the same private key.</dd>
       </dl>
@@ -90,7 +91,7 @@
 
     <section class="help-card wide">
       <h2>Saving and safety</h2>
-      <p>The app saves to this browser first and can optionally sync through your Cloudflare Worker. The CSV export contains the log data needed for trades, deposits, and pending orders; display settings such as current price and growth goal stay in the app and cloud sync instead.</p>
+      <p>The app saves logs and stock notes to this browser first and can optionally sync them through your Cloudflare Worker. The CSV export contains trades, options, deposits, pending orders, and stock notes; display settings such as current price and growth goal stay in the app and cloud sync instead.</p>
       <p>Removing a stock keeps its logs. Deleting or editing a purchase is blocked when doing so would leave a later executed sale without enough FIFO shares.</p>
       <p>Harvester Turtle is educational software. It is not financial or tax advice and does not guarantee a profit.</p>
     </section>
