@@ -22,18 +22,26 @@
   function normalizeTrade(trade) {
     const source = trade && typeof trade === "object" ? trade : {};
     const rawType = String(source.type || "buy").trim().toLowerCase();
-    const type = rawType === "deposit" ? "deposit" : rawType === "sold" || rawType === "sell" ? "sell" : rawType === "bought" || rawType === "buy" ? "buy" : "";
+    const type = rawType === "deposit" ? "deposit"
+      : rawType === "sold" || rawType === "sell" ? "sell"
+      : rawType === "bought" || rawType === "buy" ? "buy"
+      : rawType === "bto" || rawType === "option_buy" ? "option_buy"
+      : rawType === "stc" || rawType === "option_sell" ? "option_sell"
+      : rawType === "oexp" || rawType === "option_expire" ? "option_expire" : "";
+    const isOption = type.startsWith("option_");
     const shares = Math.max(0, finite(source.shares));
     const enteredAmount = Math.max(0, finite(source.amount));
     const enteredPrice = Math.max(0, finite(source.pricePerShare));
-    const pricePerShare = type === "deposit" ? 0 : enteredPrice || calculatePricePerShare(enteredAmount, shares);
-    const amount = type === "deposit" ? enteredAmount : shares > 0 && pricePerShare > 0 ? shares * pricePerShare : enteredAmount;
+    const pricePerShare = type === "deposit" || type === "option_expire" ? 0 : enteredPrice || calculatePricePerShare(enteredAmount, shares * (isOption ? 100 : 1));
+    const calculatedAmount = shares > 0 && pricePerShare > 0 ? shares * pricePerShare * (isOption ? 100 : 1) : 0;
+    const amount = type === "deposit" ? enteredAmount : isOption ? (enteredAmount || calculatedAmount) : (calculatedAmount || enteredAmount);
     const tradedAt = source.tradedAt === undefined || source.tradedAt === null || source.tradedAt === "" ? new Date().toISOString() : isoDate(source.tradedAt, "");
     const createdAt = isoDate(source.createdAt, tradedAt || new Date().toISOString());
     const legacyLimit = source.limit === true || source.isLimit === true || source.orderKind === "limit";
-    const orderKind = type === "deposit" ? "cash" : legacyLimit ? "limit" : "market";
+    const orderKind = type === "deposit" ? "cash" : isOption ? "option" : legacyLimit ? "limit" : "market";
     const status = type !== "deposit" && orderKind === "limit" && source.status !== "executed" ? "pending" : "executed";
     const symbol = String(source.symbol || "").trim().toUpperCase();
+    const optionContract = String(source.optionContract || "").replace(/^Option Expiration for\s+/i, "").trim().slice(0, 300);
     const sourceType = source.source === "opening" ? "opening" : source.source === "robinhood" ? "robinhood" : "log";
     const externalId = String(source.externalId || "").trim().slice(0, 120);
     const rawRobinhood = source.robinhood && typeof source.robinhood === "object" ? source.robinhood : null;
@@ -57,6 +65,7 @@
       amount,
       orderKind,
       status,
+      ...(isOption ? {optionContract} : {}),
       source: sourceType,
       note: String(source.note || "").trim().slice(0, 500),
       tradedAt,
@@ -69,12 +78,16 @@
   function isValidTrade(trade) {
     const item = normalizeTrade(trade);
     const isDeposit = item.type === "deposit";
+    const isOption = item.type.startsWith("option_");
+    const isExpiration = item.type === "option_expire";
     return (isDeposit || /^[A-Z0-9.-]{1,15}$/.test(item.symbol)) &&
-      ["buy", "sell", "deposit"].includes(item.type) &&
-      ["market", "limit", "cash"].includes(item.orderKind) &&
+      ["buy", "sell", "deposit", "option_buy", "option_sell", "option_expire"].includes(item.type) &&
+      ["market", "limit", "cash", "option"].includes(item.orderKind) &&
       ["pending", "executed"].includes(item.status) &&
       !(item.orderKind === "market" && item.status !== "executed") &&
-      item.amount > 0 && (isDeposit || (item.shares > 0 && item.pricePerShare > 0)) &&
+      (isExpiration ? item.amount === 0 : item.amount > 0) &&
+      (isDeposit || (item.shares > 0 && (isExpiration || item.pricePerShare > 0))) &&
+      (!isOption || item.optionContract.length > 0) &&
       Number.isFinite(new Date(item.tradedAt).getTime());
   }
 
@@ -139,6 +152,10 @@
       matches: [],
       soldShares: 0,
       remainingShares: 0,
+      matchedContracts: 0,
+      unmatchedContracts: 0,
+      soldContracts: 0,
+      remainingContracts: 0,
     }));
     const ordered = [...entries].sort((left, right) => {
       const tradeDifference = new Date(left.tradedAt) - new Date(right.tradedAt);
@@ -148,6 +165,7 @@
     });
     const entryById = new Map(entries.map(entry => [entry.id, entry]));
     const lotsBySymbol = new Map();
+    const optionLotsByContract = new Map();
     const pendingBySymbol = {};
     const realizedBySymbol = {};
     let totalBought = 0;
@@ -157,10 +175,53 @@
     let pendingSellAmount = 0;
     let realizedProfit = 0;
     let realizedLoss = 0;
+    let optionBought = 0;
+    let optionSold = 0;
+    let optionRealizedProfit = 0;
+    let optionRealizedLoss = 0;
+
+    const optionKey = entry => `${entry.symbol}|${String(entry.optionContract || "").replace(/^Option Expiration for\s+/i, "").trim().toLowerCase()}`;
 
     ordered.forEach(entry => {
       if (entry.type === "deposit") {
         totalDeposited += entry.amount;
+        return;
+      }
+      if (entry.type === "option_buy") {
+        optionBought += entry.amount;
+        entry.remainingContracts = entry.shares;
+        const key = optionKey(entry);
+        const lots = optionLotsByContract.get(key) || [];
+        lots.push({sourceId: entry.id, remainingContracts: entry.shares, costPerContract: entry.amount / entry.shares});
+        optionLotsByContract.set(key, lots);
+        return;
+      }
+      if (entry.type === "option_sell" || entry.type === "option_expire") {
+        if (entry.type === "option_sell") optionSold += entry.amount;
+        let contractsToMatch = entry.shares;
+        const lots = optionLotsByContract.get(optionKey(entry)) || [];
+        while (contractsToMatch > EPSILON && lots.length) {
+          const lot = lots[0];
+          const matched = Math.min(contractsToMatch, lot.remainingContracts);
+          const cost = matched * lot.costPerContract;
+          entry.matchedContracts += matched;
+          entry.fifoCost += cost;
+          entry.matches.push({buyId: lot.sourceId, contracts: matched, cost});
+          contractsToMatch -= matched;
+          lot.remainingContracts -= matched;
+          const buyEntry = entryById.get(lot.sourceId);
+          if (buyEntry) {
+            buyEntry.soldContracts += matched;
+            buyEntry.remainingContracts = Math.max(0, buyEntry.shares - buyEntry.soldContracts);
+          }
+          if (lot.remainingContracts <= EPSILON) lots.shift();
+        }
+        entry.unmatchedContracts = Math.max(0, contractsToMatch);
+        const matchedProceeds = entry.shares > EPSILON ? entry.amount * (entry.matchedContracts / entry.shares) : 0;
+        entry.realizedProfitLoss = matchedProceeds - entry.fifoCost;
+        if (entry.realizedProfitLoss >= 0) optionRealizedProfit += entry.realizedProfitLoss;
+        else optionRealizedLoss += Math.abs(entry.realizedProfitLoss);
+        optionLotsByContract.set(optionKey(entry), lots);
         return;
       }
       if (entry.status === "pending") {
@@ -221,10 +282,13 @@
     Object.values(pendingBySymbol).forEach(items => items.sort((left, right) => new Date(right.tradedAt) - new Date(left.tradedAt) || new Date(right.createdAt) - new Date(left.createdAt)));
 
     const realizedProfitLoss = realizedProfit - realizedLoss;
+    const optionRealizedProfitLoss = optionRealizedProfit - optionRealizedLoss;
+    const combinedRealizedProfitLoss = realizedProfitLoss + optionRealizedProfitLoss;
     const unmatchedShares = entries.reduce((sum, entry) => sum + entry.unmatchedShares, 0);
+    const unmatchedOptionContracts = entries.reduce((sum, entry) => sum + entry.unmatchedContracts, 0);
     const normalizedTaxRate = Math.min(1, Math.max(0, finite(taxRate)));
-    const estimatedTax = Math.max(realizedProfitLoss, 0) * normalizedTaxRate;
-    const finalHarvest = realizedProfitLoss - estimatedTax;
+    const estimatedTax = Math.max(combinedRealizedProfitLoss, 0) * normalizedTaxRate;
+    const finalHarvest = combinedRealizedProfitLoss - estimatedTax;
     return {
       entries: entries.map(({ originalIndex, ...entry }) => entry),
       holdings,
@@ -242,11 +306,19 @@
         realizedLoss,
         realizedProfitLoss,
         unmatchedShares,
+        optionBought,
+        optionSold,
+        optionRealizedProfit,
+        optionRealizedLoss,
+        optionRealizedProfitLoss,
+        combinedRealizedProfitLoss,
+        unmatchedOptionContracts,
         taxRate: normalizedTaxRate,
         estimatedTax,
         finalHarvest,
       },
       hasUnmatchedSales: entries.some(entry => entry.status === "executed" && entry.unmatchedShares > EPSILON),
+      hasUnmatchedOptions: entries.some(entry => entry.status === "executed" && entry.unmatchedContracts > EPSILON),
     };
   }
 

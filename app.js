@@ -299,8 +299,12 @@ function render() {
   $("totalValue").className = totalValueAmount >= totalInvestedAmount ? "positive" : "negative";
   $("totalProfit").className = totalProfitAmount >= 0 ? "positive" : "negative";
   $("totalDeposited").textContent = money(ledger.summary.totalDeposited);
-  $("tradeRealizedProfit").textContent = money(ledger.summary.realizedProfitLoss);
-  $("tradeRealizedProfit").className = ledger.summary.realizedProfitLoss >= 0 ? "positive" : "negative";
+  $("stockRealizedProfit").textContent = money(ledger.summary.realizedProfitLoss);
+  $("stockRealizedProfit").className = ledger.summary.realizedProfitLoss >= 0 ? "positive" : "negative";
+  $("optionRealizedProfit").textContent = money(ledger.summary.optionRealizedProfitLoss);
+  $("optionRealizedProfit").className = ledger.summary.optionRealizedProfitLoss >= 0 ? "positive" : "negative";
+  $("tradeRealizedProfit").textContent = money(ledger.summary.combinedRealizedProfitLoss);
+  $("tradeRealizedProfit").className = ledger.summary.combinedRealizedProfitLoss >= 0 ? "positive" : "negative";
   $("estimatedTax").textContent = money(ledger.summary.estimatedTax);
   $("finalHarvest").textContent = money(ledger.summary.finalHarvest);
   $("finalHarvest").className = ledger.summary.finalHarvest >= 0 ? "positive" : "negative";
@@ -442,22 +446,38 @@ function setTradeMessage(message, tone = "") {
   $("tradeFormMessage").className = `form-message ${tone}`;
 }
 function updateTradeMode() {
-  const deposit = $("tradeType").value === "deposit";
+  const type = $("tradeType").value;
+  const deposit = type === "deposit";
+  const option = type.startsWith("option_");
+  const expiration = type === "option_expire";
   document.querySelectorAll("[data-trade-only]").forEach(element => { element.hidden = deposit; });
+  document.querySelectorAll("[data-option-only]").forEach(element => { element.hidden = !option; });
   $("tradeSymbol").required = !deposit;
   $("tradeShares").required = !deposit;
-  $("tradePrice").required = !deposit;
-  $("tradeAmount").readOnly = !deposit;
-  $("tradeAmountHelp").textContent = deposit ? "Enter the amount deposited" : "Calculated automatically as shares × price";
+  $("tradePrice").required = !deposit && !expiration;
+  $("tradeOptionContract").required = option;
+  $("tradePrice").closest("label").hidden = deposit || expiration;
+  $("tradeAmount").readOnly = !deposit && !option;
+  $("tradeAmount").disabled = expiration;
+  $("tradeQuantityLabel").textContent = option ? "Number of contracts" : "Number of shares";
+  $("tradePriceLabel").textContent = option ? "Premium per share ($)" : "Price per share ($)";
+  $("tradeAmountHelp").textContent = deposit ? "Enter the amount deposited" : expiration ? "Expiration proceeds are $0" : option ? "Contracts × premium × 100; edit this total to include Robinhood fees" : "Calculated automatically as shares × price";
   if (deposit) {
     $("tradeLimit").checked = false;
+  } else if (option) {
+    $("tradeLimit").checked = false;
+    $("tradeAmount").value = expiration ? "0.00" : $("tradeAmount").value;
+    updateTradeAmount();
   } else {
     updateTradeAmount();
   }
 }
 function updateTradeAmount() {
-  if ($("tradeType").value === "deposit") return;
-  const amount = (Number($("tradeShares").value) || 0) * (Number($("tradePrice").value) || 0);
+  const type = $("tradeType").value;
+  if (type === "deposit") return;
+  if (type === "option_expire") return void ($("tradeAmount").value = "0.00");
+  const multiplier = type.startsWith("option_") ? 100 : 1;
+  const amount = (Number($("tradeShares").value) || 0) * (Number($("tradePrice").value) || 0) * multiplier;
   $("tradeAmount").value = amount > 0 ? amount.toFixed(2) : "";
 }
 function resetTradeForm(message = "") {
@@ -467,6 +487,7 @@ function resetTradeForm(message = "") {
   $("tradeType").value = "buy";
   $("tradeShares").value = "";
   $("tradePrice").value = "";
+  $("tradeOptionContract").value = "";
   $("tradeDate").value = toLocalDateValue();
   $("tradeAmount").value = "";
   $("logTrade").textContent = "Save Log";
@@ -483,8 +504,10 @@ function loadTradeIntoForm(entry, {fill = false} = {}) {
     $("tradeSymbol").value = entry.symbol;
     $("tradeShares").value = entry.shares;
     $("tradePrice").value = entry.pricePerShare;
+    $("tradeOptionContract").value = entry.optionContract || "";
     $("tradeLimit").checked = entry.status === "pending" && !fill;
     updateTradeAmount();
+    if (entry.type.startsWith("option_")) $("tradeAmount").value = entry.amount.toFixed(2);
   } else {
     $("tradeAmount").value = entry.amount;
   }
@@ -502,7 +525,8 @@ function renderTrades() {
   $("tradeRows").innerHTML = entries.length ? "" : '<tr><td class="empty" colspan="9">No logs yet.</td></tr>';
   entries.forEach(entry => {
     const pending = entry.status === "pending";
-    const typeLabel = entry.type === "deposit" ? "Deposit" : entry.source === "opening" ? "Opening" : entry.type === "buy" ? "Bought" : "Sold";
+    const isOption = entry.type.startsWith("option_");
+    const typeLabel = entry.type === "deposit" ? "Deposit" : entry.source === "opening" ? "Opening" : entry.type === "buy" ? "Bought" : entry.type === "sell" ? "Sold" : entry.type === "option_buy" ? "BTO" : entry.type === "option_sell" ? "STC" : "Expired";
     let sharesCell = "—";
     if (entry.type === "buy") {
       const parts = [];
@@ -511,12 +535,21 @@ function renderTrades() {
       sharesCell = pending ? quantity(entry.shares) : parts.join(" + ") || quantity(entry.shares);
     } else if (entry.type === "sell") {
       sharesCell = `<span class="${pending ? "" : "sold-portion"}">${quantity(entry.shares)}</span>`;
+    } else if (entry.type === "option_buy") {
+      const parts = [];
+      if (entry.soldContracts > 0) parts.push(`<span class="sold-portion" title="Closed via option FIFO">${quantity(entry.soldContracts)}</span>`);
+      if (entry.remainingContracts > 0) parts.push(`<span class="open-portion" title="Still open">${quantity(entry.remainingContracts)}</span>`);
+      sharesCell = parts.join(" + ") || quantity(entry.shares);
+    } else if (entry.type === "option_sell" || entry.type === "option_expire") {
+      sharesCell = `<span class="sold-portion">${quantity(entry.shares)}</span>`;
     }
     const displayedDate = entry.source === "opening" ? "Opening balance" : new Date(entry.tradedAt).toLocaleDateString([], {dateStyle: "medium"});
     let fifoStatus = "Cash deposit";
     if (pending) fifoStatus = `Pending ${entry.type === "buy" ? "buy" : "sell"} • ${daysAgo(entry.tradedAt)}d`;
     else if (entry.type === "sell") fifoStatus = `Cost ${money(entry.fifoCost)} • P/L ${money(entry.realizedProfitLoss)}`;
     else if (entry.type === "buy") fifoStatus = `${quantity(entry.remainingShares)} shares open`;
+    else if (entry.type === "option_sell" || entry.type === "option_expire") fifoStatus = `Cost ${money(entry.fifoCost)} • P/L ${money(entry.realizedProfitLoss)}`;
+    else if (entry.type === "option_buy") fifoStatus = `${quantity(entry.remainingContracts)} contracts open`;
     const actions = [
       pending ? `<button data-fill-trade="${escapeHtml(entry.id)}">Mark Filled</button>` : "",
       `<button data-edit-trade="${escapeHtml(entry.id)}">Edit</button>`,
@@ -525,17 +558,21 @@ function renderTrades() {
     $("tradeRows").insertAdjacentHTML("beforeend", `<tr>
       <td title="${escapeHtml(displayedDate)}">${escapeHtml(displayedDate)}</td>
       <td>${entry.symbol ? escapeHtml(entry.symbol) : "—"}</td>
-      <td><span class="trade-action ${entry.type} ${pending ? "pending" : ""}">${typeLabel}</span></td>
+      <td><span class="trade-action ${isOption ? "option" : entry.type} ${pending ? "pending" : ""}">${typeLabel}</span></td>
       <td>${sharesCell}</td><td>${entry.type === "deposit" ? "—" : money(entry.pricePerShare)}</td><td>${money(entry.amount)}</td>
       <td class="${entry.realizedProfitLoss < 0 ? "negative" : entry.realizedProfitLoss > 0 ? "positive" : ""}">${escapeHtml(fifoStatus)}</td>
-      <td class="trade-note">${escapeHtml(entry.note || "—")}</td><td><div class="trade-row-actions">${actions}</div></td>
+      <td class="trade-note">${entry.optionContract ? `<strong>${escapeHtml(entry.optionContract)}</strong>${entry.note && entry.note !== entry.optionContract && !entry.note.includes(entry.optionContract) ? `<br>${escapeHtml(entry.note)}` : ""}` : escapeHtml(entry.note || "—")}</td><td><div class="trade-row-actions">${actions}</div></td>
     </tr>`);
   });
   $("logTotalDeposited").textContent = money(ledger.summary.totalDeposited);
   $("tradeOpenCost").textContent = money(ledger.summary.openCost);
   $("pendingBuyAmount").textContent = money(ledger.summary.committedBuyAmount);
-  $("logRealizedProfit").textContent = money(ledger.summary.realizedProfitLoss);
-  $("logRealizedProfit").className = ledger.summary.realizedProfitLoss >= 0 ? "positive" : "negative";
+  $("logStockRealizedProfit").textContent = money(ledger.summary.realizedProfitLoss);
+  $("logStockRealizedProfit").className = ledger.summary.realizedProfitLoss >= 0 ? "positive" : "negative";
+  $("logOptionRealizedProfit").textContent = money(ledger.summary.optionRealizedProfitLoss);
+  $("logOptionRealizedProfit").className = ledger.summary.optionRealizedProfitLoss >= 0 ? "positive" : "negative";
+  $("logRealizedProfit").textContent = money(ledger.summary.combinedRealizedProfitLoss);
+  $("logRealizedProfit").className = ledger.summary.combinedRealizedProfitLoss >= 0 ? "positive" : "negative";
 }
 
 tradeForm.addEventListener("input", event => {
@@ -552,7 +589,8 @@ tradeForm.addEventListener("submit", event => {
   const enteredDate = $("tradeDate").value;
   const tradedDate = new Date(`${enteredDate}T12:00:00`);
   const isDeposit = type === "deposit";
-  const pending = !isDeposit && $("tradeLimit").checked;
+  const isOption = type.startsWith("option_");
+  const pending = !isDeposit && !isOption && $("tradeLimit").checked;
   const wasLimit = existing && existing.orderKind === "limit";
   const candidate = normalizeTrade({
     id: existing ? existing.id : undefined,
@@ -561,15 +599,17 @@ tradeForm.addEventListener("submit", event => {
     shares: isDeposit ? 0 : $("tradeShares").value,
     pricePerShare: isDeposit ? 0 : $("tradePrice").value,
     amount: $("tradeAmount").value,
+    optionContract: isOption ? $("tradeOptionContract").value : "",
     orderKind: isDeposit ? "cash" : (pending || wasLimit || fillingLimitId) ? "limit" : "market",
     status: pending ? "pending" : "executed",
     tradedAt: Number.isFinite(tradedDate.getTime()) ? tradedDate.toISOString() : "invalid",
     createdAt: existing ? existing.createdAt : new Date().toISOString(),
     source: existing ? existing.source : "log",
     externalId: existing ? existing.externalId : "",
+    robinhood: existing ? existing.robinhood : undefined,
     note: $("tradeNote").value,
   });
-  if (!isValidTrade(candidate)) return setTradeMessage(isDeposit ? "Enter a positive deposit amount and valid date." : "Choose a stock and enter positive shares, price, and a valid date.");
+  if (!isValidTrade(candidate)) return setTradeMessage(isDeposit ? "Enter a positive deposit amount and valid date." : isOption ? "Choose a stock, enter the option contract and number of contracts, and enter the premium for BTO/STC." : "Choose a stock and enter positive shares, price, and a valid date.");
   let nextTrades = existing ? trades.map(item => item.id === existing.id ? candidate : item) : [...trades, candidate];
   const currentLedger = calculateLedger(trades, appSettings.taxRate);
   const nextLedger = calculateLedger(nextTrades, appSettings.taxRate);
@@ -579,11 +619,14 @@ tradeForm.addEventListener("submit", event => {
       : "This purchase change would leave a later sale without enough earlier shares. Correct the shares or date first.";
     return setTradeMessage(message);
   }
+  if (nextLedger.summary.unmatchedOptionContracts > currentLedger.summary.unmatchedOptionContracts + 1e-8) {
+    return setTradeMessage("This option sale or expiration has no earlier matching BTO contract. Use the exact same contract name, or add the missing option purchase first.");
+  }
   trades = nextTrades.map(normalizeTrade);
   persist();
   render();
   renderTrades();
-  resetTradeForm(pending ? "Pending limit saved. It will not affect profit/loss until marked filled." : isDeposit ? "Deposit saved." : "Executed trade saved.");
+  resetTradeForm(pending ? "Pending limit saved. It will not affect profit/loss until marked filled." : isDeposit ? "Deposit saved." : isOption ? "Option log saved." : "Executed trade saved.");
 });
 
 $("tradeRows").addEventListener("click", event => {
@@ -599,8 +642,10 @@ $("tradeRows").addEventListener("click", event => {
   const entry = trades.find(item => item.id === deleteId);
   if (!entry || !confirm(`Delete this ${entry.type === "deposit" ? "deposit" : entry.type === "buy" ? "purchase" : "sale"} log?`)) return;
   const nextTrades = trades.filter(item => item.id !== deleteId);
-  const currentUnmatchedShares = calculateLedger(trades, appSettings.taxRate).summary.unmatchedShares;
-  if (calculateLedger(nextTrades, appSettings.taxRate).summary.unmatchedShares > currentUnmatchedShares + 1e-8) return setTradeMessage("This purchase cannot be deleted because a later sale needs those shares.");
+  const currentSummary = calculateLedger(trades, appSettings.taxRate).summary;
+  const nextSummary = calculateLedger(nextTrades, appSettings.taxRate).summary;
+  if (nextSummary.unmatchedShares > currentSummary.unmatchedShares + 1e-8) return setTradeMessage("This purchase cannot be deleted because a later sale needs those shares.");
+  if (nextSummary.unmatchedOptionContracts > currentSummary.unmatchedOptionContracts + 1e-8) return setTradeMessage("This option purchase cannot be deleted because a later sale or expiration needs it.");
   trades = nextTrades;
   if ($("tradeId").value === deleteId) resetTradeForm();
   persist();
@@ -678,8 +723,9 @@ async function importRobinhoodFile(file) {
     return;
   }
   const previewTrades = [...trades, ...additions].map(normalizeTrade);
-  const unmatchedWarning = calculateLedger(previewTrades, appSettings.taxRate).hasUnmatchedSales
-    ? "\n\nSome sales do not have an earlier purchase in the available history, so their profit/loss will be incomplete until the missing earlier purchases are added."
+  const previewLedger = calculateLedger(previewTrades, appSettings.taxRate);
+  const unmatchedWarning = previewLedger.hasUnmatchedSales || previewLedger.hasUnmatchedOptions
+    ? "\n\nSome stock sales or option closings do not have an earlier matching purchase, so their profit/loss will be incomplete until the missing purchases are added."
     : "";
   const skippedText = skippedDetails.length ? `\nSkipped: ${skippedDetails.join(", ")}.` : "";
   if (!confirm(`Add ${additions.length} new CSV log row${additions.length === 1 ? "" : "s"} and ${symbolsToAdd.length} new stock${symbolsToAdd.length === 1 ? "" : "s"}? Existing logs and pending limits will be kept.${skippedText}${unmatchedWarning}`)) return;

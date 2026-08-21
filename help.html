@@ -34,7 +34,8 @@
     <section class="help-card">
       <h2>Trades and FIFO</h2>
       <p>For an executed trade, choose the stock, enter shares and the execution price, then confirm the calculated total.</p>
-      <p>Sales use FIFO: the oldest available purchase shares are sold first. A partly sold buy shows the sold portion in red with a line through it and keeps the remaining portion open.</p>
+      <p>Stock sales use FIFO: the oldest available purchase shares are sold first. Option STC and OEXP entries use the oldest matching BTO contract. A partly sold buy shows the closed portion in red with a line through it and keeps the remainder open.</p>
+      <p>For a manual option log, choose BTO, STC, or OEXP; enter the underlying stock, exact contract name, contracts, premium, and date. The app calculates contracts × premium × 100, and lets you adjust the total to include Robinhood fees.</p>
       <p>An Opening row is the cost basis migrated from an older Harvester Turtle portfolio.</p>
     </section>
 
@@ -52,7 +53,7 @@
 
     <section class="help-card">
       <h2>Profit, tax, and Final Harvest</h2>
-      <p>Realized Profit/Loss includes executed sales only.</p>
+      <p>The app shows Stock P/L, Options P/L, and their Combined P/L separately. Option premiums and fees use the exact CSV Amount when Robinhood supplies it.</p>
       <p class="help-formula"><strong>Estimated Tax</strong> = positive net realized gain × your configured rate<br>
       <strong>Final Harvest</strong> = realized profit − realized loss − estimated tax</p>
       <p>The default tax estimate is 30%. Change it in Price &amp; App Settings. It is a planning estimate, not tax advice.</p>
@@ -81,8 +82,8 @@
       <h2>Menu options</h2>
       <dl>
         <dt>Set Goal for All</dt><dd>Changes the growth goal for every tracked stock at once.</dd>
-        <dt>Export Data (CSV)</dt><dd>Downloads one Robinhood-shaped CSV containing executed Buy, Sell, and ACH deposit rows plus pending limit orders. Pending buys use Trans Code LB and pending sells use LS; their date, stock, shares, price, amount, and note are preserved.</dd>
-        <dt>Import Data (CSV)</dt><dd>Accepts Robinhood reports and Harvester Turtle exports with the same nine columns. It merges new rows, keeps existing logs and pending limits, adds missing stock symbols, and skips duplicates. Unsupported Robinhood activity is reported without being misclassified.</dd>
+        <dt>Export Data (CSV)</dt><dd>Downloads one Robinhood-shaped CSV containing executed Buy, Sell, BTO, STC, OEXP, and ACH deposit rows plus pending limit orders. Pending buys use Trans Code LB and pending sells use LS; their date, stock, quantity, price, amount, and note are preserved.</dd>
+        <dt>Import Data (CSV)</dt><dd>Accepts Robinhood reports and Harvester Turtle exports with the same nine columns. It imports stock activity, option BTO/STC/OEXP activity, deposits, and pending orders; keeps existing logs; adds missing stock symbols; and skips duplicates. Unsupported Robinhood activity is reported without being misclassified.</dd>
         <dt>Sync Now</dt><dd>Checks Cloudflare for newer changes, then safely loads or saves the latest copy. Stocks, deletions, logs, and app settings sync between devices using the same private key.</dd>
       </dl>
     </section>

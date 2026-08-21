@@ -119,7 +119,7 @@
       }
       const code = cleanText(row["Trans Code"], 20);
       const normalizedCode = code.toLowerCase();
-      if (!["buy", "sell", "ach", "lb", "ls"].includes(normalizedCode)) {
+      if (!["buy", "sell", "ach", "lb", "ls", "bto", "stc", "oexp"].includes(normalizedCode)) {
         unsupportedCodes[code || "Blank code"] = (unsupportedCodes[code || "Blank code"] || 0) + 1;
         return;
       }
@@ -149,6 +149,37 @@
           status: "executed",
           source: "robinhood",
           note: metadata.description || "ACH Deposit",
+          tradedAt,
+          createdAt: tradedAt,
+          robinhood: metadata,
+        });
+        return;
+      }
+
+      if (["bto", "stc", "oexp"].includes(normalizedCode)) {
+        const symbol = cleanText(row.Instrument, 20).toUpperCase();
+        const shares = Math.abs(parseFloat(cleanText(row.Quantity, 80).replace(/,/g, ""))) || 0;
+        const pricePerShare = Math.abs(parseMoney(row.Price));
+        const amount = Math.abs(parseMoney(row.Amount));
+        const optionContract = metadata.description.replace(/^Option Expiration for\s+/i, "").trim();
+        const expiration = normalizedCode === "oexp";
+        if (!tradedAt || !/^[A-Z0-9.-]{1,15}$/.test(symbol) || shares <= 0 || !optionContract || (!expiration && (pricePerShare <= 0 || amount <= 0))) {
+          invalidRows += 1;
+          return;
+        }
+        entries.push({
+          id: `${externalId}:${occurrence}`,
+          externalId,
+          type: normalizedCode === "bto" ? "option_buy" : normalizedCode === "stc" ? "option_sell" : "option_expire",
+          symbol,
+          shares,
+          pricePerShare: expiration ? 0 : pricePerShare,
+          amount: expiration ? 0 : amount,
+          optionContract,
+          orderKind: "option",
+          status: "executed",
+          source: "robinhood",
+          note: metadata.description,
           tradedAt,
           createdAt: tradedAt,
           robinhood: metadata,
@@ -253,6 +284,18 @@
         Description: cleanText(entry.note) || "ACH Deposit", "Trans Code": "ACH", Quantity: "", Price: "", Amount: formatMoney(entry.amount),
       };
     }
+    if (["option_buy", "option_sell", "option_expire"].includes(entry.type)) {
+      const expiration = entry.type === "option_expire";
+      const amount = formatMoney(entry.amount);
+      return {
+        "Activity Date": date, "Process Date": date, "Settle Date": date, Instrument: cleanText(entry.symbol, 20).toUpperCase(),
+        Description: expiration ? `Option Expiration for ${cleanText(entry.optionContract, 300)}` : cleanText(entry.optionContract, 300),
+        "Trans Code": entry.type === "option_buy" ? "BTO" : entry.type === "option_sell" ? "STC" : "OEXP",
+        Quantity: expiration ? `${formatQuantity(entry.shares)}S` : formatQuantity(entry.shares),
+        Price: expiration ? "" : formatMoney(entry.pricePerShare),
+        Amount: expiration ? "" : entry.type === "option_buy" ? `(${amount})` : amount,
+      };
+    }
     const pending = entry.status === "pending";
     const amount = formatMoney(entry.amount || finite(entry.shares) * finite(entry.pricePerShare));
     return {
@@ -288,7 +331,7 @@
         skippedOpening += 1;
         return;
       }
-      if (!["buy", "sell", "deposit"].includes(entry.type)) return;
+      if (!["buy", "sell", "deposit", "option_buy", "option_sell", "option_expire"].includes(entry.type)) return;
       if (entry.status === "pending") pendingCount += 1;
       rows.push(metadataRow(entry) || generatedRow(entry));
     });

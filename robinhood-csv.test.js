@@ -60,4 +60,29 @@ const manualRoundTrip = parseRobinhoodCsv(manualExport.csv);
 assert.equal(manualRoundTrip.entries.find(entry => entry.status === "pending").pricePerShare, 90);
 assert.equal(mergeRobinhoodEntries(manualEntries, manualRoundTrip.entries.filter(entry => entry.status === "pending")).duplicateCount, 1);
 
+const optionCsv = `${HEADERS.map(value => `"${value}"`).join(",")}\r\n` +
+  '"7/29/2026","7/29/2026","7/30/2026","F","F 8/7/2026 Put $14.00","BTO","1","$0.06","($6.04)"\r\n' +
+  '"7/31/2026","7/31/2026","8/3/2026","F","F 8/7/2026 Put $14.00","STC","1","$0.11","$10.94"\r\n' +
+  '"8/7/2026","8/7/2026","8/7/2026","SOFI","Option Expiration for SOFI 8/7/2026 Call $21.00","OEXP","1S","",""\r\n';
+const parsedOptions = parseRobinhoodCsv(optionCsv);
+assert.equal(parsedOptions.entries.length, 3);
+assert.equal(parsedOptions.unsupportedRows, 0);
+assert.equal(parsedOptions.entries[0].type, "option_buy");
+assert.equal(parsedOptions.entries[0].amount, 6.04);
+assert.equal(parsedOptions.entries[1].type, "option_sell");
+assert.equal(parsedOptions.entries[2].type, "option_expire");
+assert.equal(parsedOptions.entries[2].shares, 1);
+assert.equal(parsedOptions.entries[2].optionContract, "SOFI 8/7/2026 Call $21.00");
+const exportedOptions = buildRobinhoodCsv(parsedOptions.entries);
+assert.equal(exportedOptions.rowCount, 3);
+assert.equal(parseRobinhoodCsv(exportedOptions.csv).entries.length, 3);
+
+const manualOptionExport = buildRobinhoodCsv([
+  {type: "option_buy", symbol: "MSFT", optionContract: "MSFT 8/7/2026 Put $370.00", shares: 1, pricePerShare: 0.13, amount: 13.04, status: "executed", tradedAt: "2026-07-30T12:00:00Z"},
+  {type: "option_expire", symbol: "MSFT", optionContract: "MSFT 8/7/2026 Put $370.00", shares: 1, amount: 0, status: "executed", tradedAt: "2026-08-07T12:00:00Z"},
+]);
+assert.match(manualOptionExport.csv, /"BTO","1","\$0\.13","\(\$13\.04\)"/);
+assert.match(manualOptionExport.csv, /"OEXP","1S","",""/);
+assert.equal(parseRobinhoodCsv(manualOptionExport.csv).entries.length, 2);
+
 console.log("Robinhood CSV tests: OK");

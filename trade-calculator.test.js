@@ -76,6 +76,29 @@ const lossOnly = calculateLedger([
 assert.equal(lossOnly.summary.estimatedTax, 0);
 assert.equal(lossOnly.summary.finalHarvest, -20);
 
+const options = calculateLedger([
+  {id: "f-buy", type: "option_buy", symbol: "F", optionContract: "F 8/7/2026 Put $14.00", shares: 1, pricePerShare: 0.06, amount: 6.04, tradedAt: "2026-07-29T12:00:00Z"},
+  {id: "f-sell", type: "option_sell", symbol: "F", optionContract: "F 8/7/2026 Put $14.00", shares: 1, pricePerShare: 0.11, amount: 10.94, tradedAt: "2026-07-31T12:00:00Z"},
+  {id: "sofi-buy", type: "option_buy", symbol: "SOFI", optionContract: "SOFI 8/7/2026 Call $21.00", shares: 1, pricePerShare: 0.05, amount: 5.04, tradedAt: "2026-07-29T12:00:00Z"},
+  {id: "sofi-expire", type: "option_expire", symbol: "SOFI", optionContract: "Option Expiration for SOFI 8/7/2026 Call $21.00", shares: 1, amount: 0, tradedAt: "2026-08-07T12:00:00Z"},
+  {id: "stock-buy", type: "buy", symbol: "AAPL", shares: 1, pricePerShare: 100, tradedAt: "2026-07-01T12:00:00Z"},
+  {id: "stock-sell", type: "sell", symbol: "AAPL", shares: 1, pricePerShare: 110, tradedAt: "2026-07-02T12:00:00Z"},
+], 0.30);
+assert.equal(options.entries.find(entry => entry.id === "f-sell").realizedProfitLoss.toFixed(2), "4.90");
+assert.equal(options.entries.find(entry => entry.id === "sofi-expire").realizedProfitLoss.toFixed(2), "-5.04");
+assert.equal(options.summary.optionRealizedProfitLoss.toFixed(2), "-0.14");
+assert.equal(options.summary.combinedRealizedProfitLoss.toFixed(2), "9.86");
+assert.equal(options.summary.estimatedTax.toFixed(3), "2.958");
+assert.equal(options.summary.finalHarvest.toFixed(3), "6.902");
+assert.equal(options.summary.unmatchedOptionContracts, 0);
+assert.equal(options.hasUnmatchedOptions, false);
+
+const unmatchedOption = calculateLedger([
+  {type: "option_sell", symbol: "F", optionContract: "F 8/7/2026 Put $14.00", shares: 1, pricePerShare: 0.11, amount: 10.94, tradedAt: "2026-07-31T12:00:00Z"},
+]);
+assert.equal(unmatchedOption.summary.unmatchedOptionContracts, 1);
+assert.equal(unmatchedOption.hasUnmatchedOptions, true);
+
 const sorted = [
   normalizeTrade({id: "z-new", type: "buy", symbol: "Z", pricePerShare: 1, shares: 1, tradedAt: "2026-04-03T10:00:00Z"}),
   normalizeTrade({id: "a-old", type: "buy", symbol: "A", pricePerShare: 1, shares: 1, tradedAt: "2026-04-01T10:00:00Z"}),

@@ -140,6 +140,7 @@ td input { width: 62px; border: 1px solid #cbd5e1; border-radius: 6px; padding: 
 .trade-action.buy { background: #e8f1ff; color: var(--blue); }
 .trade-action.sell { background: #fff3cd; color: var(--warn); }
 .trade-action.deposit { background: #e9f8ef; color: var(--good); }
+.trade-action.option { background: #f1e8ff; color: #6941c6; }
 .trade-action.pending { outline: 1px dashed currentColor; }
 .sold-portion { color: var(--bad); text-decoration: line-through; text-decoration-thickness: 2px; }
 .open-portion { color: var(--good); }
